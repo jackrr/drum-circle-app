@@ -6,43 +6,55 @@ export function initialize(url: string) {
 
 	const rtcConn = new RTCPeerConnection(rtcConfig);
 	const sendChannel = rtcConn.createDataChannel('foo');
+	sendChannel.onopen = (ev) => {
+		console.log('sendChannel has opened', ev);
+		sendChannel.send('Hello over RTC!!');
+	};
+
+	sendChannel.onclose = () => console.log('sendChannel has closed');
+
+	sendChannel.onmessage = (e) =>
+		console.log(`Message from DataChannel '${sendChannel.label}' payload '${e.data}'`);
 	// sock.addEventListener('open', (event) => {
 	// 	console.log('open', event);
 	// });
 
 	sock.addEventListener('message', async (event) => {
-		console.log('message received', event);
+		const sdp = JSON.parse(event.data);
+		console.log({ sdp });
 
 		try {
-			const res = await rtcConn.setRemoteDescription(
-				new RTCSessionDescription(JSON.parse(event.data))
-			);
+			const res = await rtcConn.setRemoteDescription(new RTCSessionDescription(sdp));
 			console.log('remote description set');
-			sendChannel.onclose = () => console.log('sendChannel has closed');
-			sendChannel.onopen = (ev) => {
-				console.log('sendChannel has opened', ev);
-				sendChannel.send('Hello over RTC!!');
-			};
-			sendChannel.onmessage = (e) =>
-				console.log(`Message from DataChannel '${sendChannel.label}' payload '${e.data}'`);
+			// sendChannel.send('hello world!!!');
+
+			try {
+				const answer = await rtcConn.createAnswer();
+				rtcConn.setLocalDescription(answer);
+				sock.send(JSON.stringify(answer));
+			} catch (err) {
+				console.log('failed to create answer', err);
+			}
 		} catch (err) {
 			console.log(err);
 		}
 	});
 
-	rtcConn.onnegotiationneeded = (e) =>
-		rtcConn
-			.createOffer()
-			.then((d) => rtcConn.setLocalDescription(d))
-			.catch(console.error);
+	// TODO: why the pair of on candidate/on negotiation? interplay here is a little funky
+	rtcConn.onnegotiationneeded = async (e) => {
+		try {
+			const offer = await rtcConn.createOffer();
+			rtcConn.setLocalDescription(offer);
+		} catch (err) {
+			console.error('Failed to create offer', err);
+		}
+	};
 
 	rtcConn.onicecandidate = (event) => {
 		if (event.candidate !== null) {
-			console.log('sending sd');
+			console.log('sending new sdp');
 			sock.send(JSON.stringify(rtcConn.localDescription));
 		}
-
-		console.log(event, rtcConn);
 	};
 
 	rtcConn.onconnectionstatechange = (e) => {
@@ -55,11 +67,11 @@ export function initialize(url: string) {
 	rtcConn.ondatachannel = (event) => {
 		console.log('Received data channel', event);
 		const channel = event.channel;
-		channel.onopen = (event) => {
-			channel.send('Hi back!');
-		};
+		// channel.onopen = (event) => {
+		// 	channel.send('Hi back!');
+		// };
 		channel.onmessage = (event) => {
-			console.log(event.data);
+			console.log('got message on data channel', event.data);
 		};
 	};
 }
