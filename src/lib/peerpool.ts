@@ -13,7 +13,7 @@ class RTCPeer {
 	conn: RTCPeerConnection;
 	channel: RTCDataChannel;
 
-	constructor(peerId: string) {
+	constructor(peerId: string, onIceCandidate: (candidate) => void) {
 		this.peerId = peerId;
 		this.conn = new RTCPeerConnection(rtcConfig);
 		this.channel = this.conn.createDataChannel('music_feed');
@@ -46,12 +46,16 @@ class RTCPeer {
 				console.log('got message on data channel', event.data);
 			};
 		};
+
+		this.conn.onicecandidate = (event) => {
+			event.candidate && onIceCandidate(event.candidate);
+		};
 	}
 
 	async getInitialOffer() {
 		// TODO: why the pair of on candidate/on negotiation? interplay here is a little funky
 		const conn = this.conn;
-		
+
 		return new Promise((resolve) => {
 			conn.addEventListener('negotiationneeded', async function handleNegotiationNeeded(e) {
 				const offer = await conn.createOffer();
@@ -59,21 +63,6 @@ class RTCPeer {
 				conn.removeEventListener('negotiationneeded', handleNegotiationNeeded);
 				resolve(offer);
 			});
-			// this.conn.onnegotiationneeded = async (e) => {
-			// 	try {
-			// 		const offer = await rtcConn.createOffer();
-			// 		rtcConn.setLocalDescription(offer);
-			// 	} catch (err) {
-			// 		console.error('Failed to create offer', err);
-			// 	}
-			// };
-
-			// rtcConn.onicecandidate = (event) => {
-			// 	if (event.candidate !== null) {
-			// 		console.log('sending new sdp');
-			// 		sock.send(JSON.stringify(rtcConn.localDescription));
-			// 	}
-			// };
 		});
 	}
 
@@ -133,7 +122,19 @@ export class ConnectionManager {
 		if (message.sdp) {
 			message.sdp = JSON.stringify(message.sdp);
 		}
+
+		if (message.ice) message.ice = JSON.stringify(message.ice);
+
 		this.serverSocket.send(JSON.stringify(message));
+	}
+
+	onIceCandidate(candidate) {
+		this.sendMessage({
+			name: 'ice_candidate',
+			circle_id: this.circleId,
+			member_id: this.userId,
+			ice: candidate
+		});
 	}
 
 	async processServerMessage(message) {
@@ -153,7 +154,9 @@ export class ConnectionManager {
 			case 'circle_discovery':
 				if (this.state === State.JOINING) {
 					this.drumCircleId = payload.circle_id;
-					this.rtcConnections = payload.members.map((peerId) => new RTCPeer(peerId));
+					this.rtcConnections = payload.members.map(
+						(peerId) => new RTCPeer(peerId, onIceCandidate)
+					);
 
 					Promise.all(
 						this.rtcConnections.map(async (p) => {
@@ -173,7 +176,7 @@ export class ConnectionManager {
 				break;
 			case 'new_member_rtc_offer':
 				if (this.state === State.JOINED) {
-					const newPeer = new RTCPeer(payload.member_id);
+					const newPeer = new RTCPeer(payload.member_id, onIceCandidate);
 					this.rtcConnections.push(newPeer);
 					const answer = await newPeer.addRemote(JSON.parse(payload.sdp));
 					this.sendMessage({
@@ -190,7 +193,7 @@ export class ConnectionManager {
 
 			case 'new_member_rtc_answer':
 				if ([State.JOINING, State.JOINED].includes(this.state)) {
-					const newPeer = this.rtcConnections.find((c) => c.peerId === payload.member_id);
+					const newPeer = this.rtcConnections.find((c) => c.peerId === payload.member);
 
 					await newPeer.setRemoteAnswer(JSON.parse(payload.sdp));
 
