@@ -86,7 +86,7 @@ class RTCPeer {
 
 	async setRemoteAnswer(sdp: string) {
 		console.log(`answer: setting ${this.peerId} remote to `, sdp);
-		await conn.setRemoteDescription(sdp);
+		await this.conn.setRemoteDescription(sdp);
 	}
 }
 
@@ -188,7 +188,7 @@ export class ConnectionManager {
 
 			case 'new_member_rtc_answer':
 				if ([State.JOINING, State.JOINED].includes(this.state)) {
-					const newPeer = this.rtcConnections.find((c) => (c.peerId = payload.memberId));
+					const newPeer = this.rtcConnections.find((c) => c.peerId === payload.member_id);
 
 					await newPeer.setRemoteAnswer(JSON.parse(payload.sdp));
 
