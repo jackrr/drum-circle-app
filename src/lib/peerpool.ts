@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { rtcConfig } from './rtc';
+import { expect } from 'vitest';
 
 enum State {
 	NEW,
@@ -64,6 +65,10 @@ class RTCPeer {
 				resolve(offer);
 			});
 		});
+	}
+
+	async addIceCandidate(peerCandidate: RTCIceCandidate): Promise<void> {
+		peerCandidate && (await this.conn.addIceCandidate(peerCandidate));
 	}
 
 	async addRemote(sdp: string) {
@@ -137,7 +142,7 @@ export class ConnectionManager {
 		});
 	}
 
-	async processServerMessage(message) {
+	async processServerMessage(message: any) {
 		const payload = JSON.parse(message);
 		console.log('GOT MESSAGE', payload, { state: this.state });
 
@@ -193,7 +198,11 @@ export class ConnectionManager {
 
 			case 'new_member_rtc_answer':
 				if ([State.JOINING, State.JOINED].includes(this.state)) {
-					const newPeer = this.rtcConnections.find((c) => c.peerId === payload.member);
+					const newPeer = this.rtcConnections.find((c) => c.peerId === payload.member_id);
+
+					if (!newPeer) {
+						throw new Error('No peer found');
+					}
 
 					await newPeer.setRemoteAnswer(JSON.parse(payload.sdp));
 
@@ -202,6 +211,13 @@ export class ConnectionManager {
 				} else {
 					console.error('Unexpected event', payload);
 				}
+				break;
+
+			case 'ice_candidate':
+				const broadcastingPeer = this.rtcConnections.find((c) => c.peerId === payload.member_id);
+				const iceCandidate = JSON.parse(payload.ice);
+				await broadcastingPeer?.addIceCandidate(iceCandidate);
+
 				break;
 		}
 	}
