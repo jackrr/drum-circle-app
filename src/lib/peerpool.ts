@@ -1,6 +1,5 @@
 import { v4 as uuid } from 'uuid';
 import { rtcConfig } from './rtc';
-import { expect } from 'vitest';
 
 enum State {
 	NEW,
@@ -122,7 +121,7 @@ export class ConnectionManager {
 		});
 	}
 
-	private sendMessage(message) {
+	private sendMessage(message: any) {
 		console.log('sending', message);
 		if (message.sdp) {
 			message.sdp = JSON.stringify(message.sdp);
@@ -133,10 +132,10 @@ export class ConnectionManager {
 		this.serverSocket.send(JSON.stringify(message));
 	}
 
-	onIceCandidate(candidate) {
+	onIceCandidate(candidate: any) {
 		this.sendMessage({
 			name: 'ice_candidate',
-			circle_id: this.circleId,
+			circle_id: this.drumCircleId,
 			member_id: this.userId,
 			ice: candidate
 		});
@@ -160,7 +159,7 @@ export class ConnectionManager {
 				if (this.state === State.JOINING) {
 					this.drumCircleId = payload.circle_id;
 					this.rtcConnections = payload.members.map(
-						(peerId) => new RTCPeer(peerId, onIceCandidate)
+						(peerId: any) => new RTCPeer(peerId, (c) => this.onIceCandidate(c))
 					);
 
 					Promise.all(
@@ -181,7 +180,7 @@ export class ConnectionManager {
 				break;
 			case 'new_member_rtc_offer':
 				if (this.state === State.JOINED) {
-					const newPeer = new RTCPeer(payload.member_id, onIceCandidate);
+					const newPeer = new RTCPeer(payload.member_id, (c) => this.onIceCandidate(c));
 					this.rtcConnections.push(newPeer);
 					const answer = await newPeer.addRemote(JSON.parse(payload.sdp));
 					this.sendMessage({
