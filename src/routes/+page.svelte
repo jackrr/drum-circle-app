@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { ConnectionManager, initialize } from '$lib/peerpool';
 
+	let circleId = $state('');
+
 	let connection: ConnectionManager | undefined = $state();
 
 	onMount(async () => {
@@ -16,9 +18,20 @@
 			console.log('NO CONNECTION TO CONNECT TO!');
 		}
 	}
+
+	async function joinCircle() {
+		if (connection) {
+			await connection.joinCircle(circleId);
+			console.log('Joined!');
+		} else {
+			console.log('NO CONNECTION TO CONNECT TO!');
+		}
+	}
 </script>
 
 <h1>Drum Circle</h1>
 {#if connection}
 	<button onclick={createCircle}>Create new circle</button>
+	<input bind:value={circleId} />
+	<button onclick={joinCircle} disabled={circleId.length < 1}>Join circle {circleId}</button>
 {/if}
