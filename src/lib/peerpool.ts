@@ -66,8 +66,9 @@ class RTCPeer {
 		});
 	}
 
-	async addIceCandidate(peerCandidate: RTCIceCandidate): Promise<void> {
-		peerCandidate && (await this.conn.addIceCandidate(peerCandidate));
+	async addIceCandidate(peerCandidateData: Record<string, any>): Promise<void> {
+		const candidate = new RTCIceCandidate(peerCandidateData);
+		peerCandidateData && (await this.conn.addIceCandidate(candidate));
 	}
 
 	async addRemote(sdp: string) {
