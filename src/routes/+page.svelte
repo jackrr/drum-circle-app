@@ -43,22 +43,27 @@
 </script>
 
 <div class="flex flex-col items-center pt-7">
-	<h1>Drum Circle</h1>
-	<div class="flex flex-col pt-7">
+	<div style="grid-template-rows: repeat(3, max-content)" class="grid grid-cols-2 place-items-center p-4 gap-8">
+		<svg class="col-span-2" width="200" height="200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<path id="circularPath" d="M 100,100 m -50,0 a 50,50 0 1,1 100,0 a 50,50 0 1,1 -100,0" fill="none" stroke="lightgray" stroke-width="0" />
+			<text style="font-size: 47px; fill: #2b7fff; font-weight: bold">
+				<textPath xlink:href="#circularPath" startOffset="0%">
+				DRUM CIRCLE
+				</textPath>
+			</text>
+		</svg>
+
 		{#if connection}
 			<button
-				class="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+				class="col-span-2 rounded bg-blue-500 px-4 py-2 w-full font-bold text-white hover:bg-blue-700 h-12"
 				onclick={createCircle}>Create new circle</button
 			>
-
-			<div class="flex my-7">
-				<input class="border mr-8" bind:value={circleId} placeholder="Circle ID" />
+				<input class="rounded border px-3 py-1 h-12 w-full" bind:value={circleId} placeholder="Circle ID" />
 				<button
-					class="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+					class="w-full rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700 h-12"
 					onclick={joinCircle}
 					disabled={circleId.length < 1}>Join circle {circleId}</button
 				>
-			</div>
 		{/if}
 	</div>
 </div>
