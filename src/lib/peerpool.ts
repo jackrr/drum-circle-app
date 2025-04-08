@@ -16,21 +16,22 @@ class RTCPeer {
 	constructor(peerId: string) {
 		this.peerId = peerId;
 		this.conn = new RTCPeerConnection(rtcConfig);
-		this.chan = this.conn.createDataChannel('music_feed');
+		this.channel = this.conn.createDataChannel('music_feed');
 
-		this.chan.onopen = (ev) => {
+		this.channel.onopen = (ev) => {
 			console.log('chan has opened', ev);
-			this.chan.send('Hello over RTC!!');
+			this.channel.send('Hello over RTC!!');
 		};
 
-		this.chan.onclose = () => console.log('chan has closed');
+		this.channel.onclose = () => console.log('chan has closed');
 
-		this.chan.onmessage = (e) =>
-			console.log(`Message from DataChannel '${this.chan.label}' payload '${e.data}'`);
+		this.channel.onmessage = (e) =>
+			console.log(`Message from DataChannel '${this.channel.label}' payload '${e.data}'`);
 
 		this.conn.onconnectionstatechange = (e) => {
 			console.log('rtc conn state change', e);
 		};
+
 		this.conn.onicecandidateerror = (e) => {
 			console.log('rtc ice candidate error', e);
 		};
@@ -50,6 +51,7 @@ class RTCPeer {
 	async getInitialOffer() {
 		// TODO: why the pair of on candidate/on negotiation? interplay here is a little funky
 		const conn = this.conn;
+		
 		return new Promise((resolve) => {
 			conn.addEventListener('negotiationneeded', async function handleNegotiationNeeded(e) {
 				const offer = await conn.createOffer();
@@ -230,7 +232,7 @@ export class ConnectionManager {
 	}
 }
 
-export async function initialize(url: string): ConnectionManager {
+export async function initialize(url: string): Promise<ConnectionManager> {
 	const wsUrl = `ws://${url}`;
 	const serverSocket = new WebSocket(wsUrl);
 	const manager = new ConnectionManager(serverSocket);

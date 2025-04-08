@@ -10,10 +10,23 @@
 		connection = await initialize('127.0.0.1:8080');
 	});
 
+	// calls 
+	// 1234: 
+	// {
+	// 	offerCandidates: [{ice_candidate_1}, {ice_candidate_two},.....]
+	// 	answerCandidates: [{}, ...]
+	// 	offer: {
+	//		sdp: <>
+	//		type: <>
+	// 	},
+	// 	answer: {
+	//  }
+	// }
+
 	async function createCircle() {
 		if (connection) {
-			await connection.createCircle();
-			console.log('connected!');
+			const msg = await connection.createCircle();
+			console.log('connected!',);
 		} else {
 			console.log('NO CONNECTION TO CONNECT TO!');
 		}
