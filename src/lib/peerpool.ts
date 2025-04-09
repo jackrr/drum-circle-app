@@ -148,7 +148,6 @@ type ServerPayload = {
 };
 
 export class DrumCircle {
-	userId: string;
 	serverConnection: ServerConnection;
 	peers: { [peerId: string]: PeerConnection };
 	circleId?: string;
@@ -158,7 +157,6 @@ export class DrumCircle {
 	constructor(backendUrl: string) {
 		this.serverConnection = new ServerConnection(backendUrl);
 		this.peers = {};
-		this.userId = uuid();
 
 		pipe(
 			this.serverConnection.inbound,
@@ -215,7 +213,7 @@ export class DrumCircle {
 	}
 
 	private handleServerInbound(payload: ServerPayload) {
-		console.log('drum circle handling', payload);
+		console.log('drum circle handling', payload, payload.member_id);
 		switch (payload.name) {
 			case 'circle_created':
 				this.circleId = payload.circle_id;
