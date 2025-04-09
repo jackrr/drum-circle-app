@@ -1,269 +1,268 @@
-import { v4 as uuid } from 'uuid';
-import { rtcConfig } from './rtc';
+import type { Subject } from 'wonka';
+import { makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
 
-enum State {
-	NEW,
-	CREATING,
-	JOINING,
-	JOINED
-}
+type Stream = ReturnType<typeof makeSubject>['source'];
 
-class RTCPeer {
-	peerId: string;
-	conn: RTCPeerConnection;
-	channel: RTCDataChannel;
+type PeerServerPayload = {
+	name: string;
+	sdp?: string;
+	ice?: string;
+};
 
-	constructor(peerId: string, onIceCandidate: (candidate) => void) {
-		this.peerId = peerId;
-		this.conn = new RTCPeerConnection(rtcConfig);
-		this.channel = this.conn.createDataChannel('music_feed');
+class PeerConnection {
+	rtc: RTCPeerConnection;
+	channel?: RTCDataChannel;
+	toPeer: (PeerServerPayload: PeerServerPayload) => void;
 
-		this.channel.onopen = (ev) => {
-			console.log('chan has opened', ev);
-			this.channel.send('Hello over RTC!!');
+	constructor(toPeer: (payload: PeerServerPayload) => void) {
+		this.toPeer = toPeer;
+
+		this.rtc = new RTCPeerConnection({
+			iceServers: [
+				{
+					urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+				}
+			]
+		});
+
+		this.rtc.ondatachannel = (event) => {
+			this.registerChannel(event.channel, false);
+		};
+
+		// TODO: kill these if noisy, just for debugging
+		this.rtc.onconnectionstatechange = (e) => {
+			console.log('rtc conn state change', this.rtc.connectionState);
+		};
+
+		this.rtc.onicecandidateerror = (e) => {
+			console.log('rtc ice candidate error', e);
+		};
+
+		this.rtc.onicecandidate = (ev) => {
+			ev.candidate &&
+				this.toPeer({
+					name: 'ice_candidate',
+					ice: JSON.stringify(ev.candidate)
+				});
+		};
+	}
+
+	private registerChannel(channel: RTCDataChannel, initiating: boolean) {
+		this.channel = channel;
+
+		this.channel.onopen = (_) => {
+			if (initiating) this.channel?.send('Hello over RTC!!');
 		};
 
 		this.channel.onclose = () => console.log('chan has closed');
 
+		// TODO: expose I/O to peer
 		this.channel.onmessage = (e) =>
-			console.log(`Message from DataChannel '${this.channel.label}' payload '${e.data}'`);
-
-		this.conn.onconnectionstatechange = (e) => {
-			console.log('rtc conn state change', e);
-		};
-
-		this.conn.onicecandidateerror = (e) => {
-			console.log('rtc ice candidate error', e);
-		};
-
-		this.conn.ondatachannel = (event) => {
-			console.log('Received data channel', event);
-			const channel = event.channel;
-			// channel.onopen = (event) => {
-			// 	channel.send('Hi back!');
-			// };
-			channel.onmessage = (event) => {
-				console.log('got message on data channel', event.data);
-			};
-		};
-
-		this.conn.onicecandidate = (event) => {
-			event.candidate && onIceCandidate(event.candidate);
-		};
+			console.log(`Message from DataChannel '${this.channel?.label}' payload '${e.data}'`);
 	}
 
-	async getInitialOffer() {
-		// TODO: why the pair of on candidate/on negotiation? interplay here is a little funky
-		const conn = this.conn;
+	async initiate() {
+		this.registerChannel(this.rtc.createDataChannel('peer_data_stream'), true);
 
-		return new Promise((resolve) => {
-			conn.addEventListener('negotiationneeded', async function handleNegotiationNeeded(e) {
-				const offer = await conn.createOffer();
-				conn.setLocalDescription(offer);
-				conn.removeEventListener('negotiationneeded', handleNegotiationNeeded);
-				resolve(offer);
-			});
+		const offer = await this.rtc.createOffer();
+		await this.rtc.setLocalDescription(offer);
+
+		this.toPeer({
+			name: 'new_member_rtc_offer',
+			sdp: JSON.stringify(offer)
 		});
 	}
 
-	async addIceCandidate(peerCandidateData: Record<string, any>): Promise<void> {
-		const candidate = new RTCIceCandidate(peerCandidateData);
-		peerCandidateData && (await this.conn.addIceCandidate(candidate));
-	}
+	async handleServerInbound(payload: PeerServerPayload) {
+		switch (payload.name) {
+			case 'new_member_rtc_offer':
+				await this.rtc.setRemoteDescription(JSON.parse(payload.sdp!));
+				const answer = await this.rtc.createAnswer();
+				await this.rtc.setLocalDescription(answer);
 
-	async addRemote(sdp: string) {
-		console.log(`offer: setting ${this.peerId} remote to `, sdp);
-		await this.conn.setRemoteDescription(new RTCSessionDescription(sdp));
-		console.log('remote description set');
-		const answer = await this.conn.createAnswer();
-		this.conn.setLocalDescription(answer);
-		return answer;
-	}
-
-	async setRemoteAnswer(sdp: string) {
-		console.log(`answer: setting ${this.peerId} remote to `, sdp);
-		await this.conn.setRemoteDescription(sdp);
+				this.toPeer({
+					name: 'new_member_rtc_answer',
+					sdp: JSON.stringify(answer)
+				});
+				break;
+			case 'new_member_rtc_answer':
+				await this.rtc.setRemoteDescription(JSON.parse(payload.sdp!));
+				break;
+			case 'ice_candidate':
+				this.rtc.addIceCandidate(JSON.parse(payload.ice!));
+				break;
+		}
 	}
 }
 
-export class ConnectionManager {
-	userId: ReturnValue<uuid>;
-	state: State;
-	serverSocket: WebSocket;
-	rtcConnections: RTCPeer[];
-	drumCircleId?: string;
-	private watchers: { [state in State]?: () => void[] };
+class ServerConnection {
+	socket: WebSocket;
+	inbound: Stream;
 
-	constructor(serverSocket: WebSocket) {
-		this.state = State.NEW;
-		this.serverSocket = serverSocket;
-		this.rtcConnections = [];
-		this.watchers = {};
-		this.userId = uuid();
-	}
+	constructor(url: string) {
+		const wsUrl = `ws://${url}`;
+		const { source, next, complete } = makeSubject();
+		this.inbound = source;
 
-	private setState(state: State) {
-		this.state = state;
+		this.socket = new WebSocket(wsUrl);
 
-		const waiting = this.watchers[state];
+		this.socket.addEventListener('message', (event) => {
+			const payload = JSON.parse(event.data);
+			next(payload);
+		});
 
-		if (!waiting) return;
+		this.socket.addEventListener('open', () => {
+			console.log(`Connected to backend server at ${wsUrl}`);
+		});
 
-		waiting.forEach((w) => w());
-		this.watchers[state] = [];
-	}
-
-	private async onChangeToState(targetState: State) {
-		if (this.state === targetState) return Promise.resolve();
-
-		return new Promise((resolve) => {
-			if (!this.watchers[this.state]) this.watchers[this.state] = [];
-			this.watchers[this.state].push(resolve);
+		this.socket.addEventListener('close', () => {
+			console.log(`Connected to backend server at ${wsUrl} closed`);
+			next(complete);
 		});
 	}
 
-	private sendMessage(message: any) {
-		console.log('sending', message);
-		if (message.sdp) {
-			message.sdp = JSON.stringify(message.sdp);
+	sendMessage(message: ServerPayload) {
+		this.socket.send(JSON.stringify(message));
+	}
+}
+
+type ServerPayload = {
+	name: string;
+	member_id?: string;
+	circle_id?: string;
+	members?: string[];
+	sdp?: string;
+	ice?: string;
+};
+
+type DrumCircleEvent = {
+	name: DrumCircleEventName;
+	payload?: any;
+};
+
+enum DrumCircleEventName {
+	JOINED,
+	NEW_PEER
+}
+
+export class DrumCircle {
+	serverConnection: ServerConnection;
+	peers: { [peerId: string]: PeerConnection };
+	circleId?: string;
+	peerServerOutbound?: Stream;
+	unsubMergedPeers?: () => void;
+
+	feed: Subject<DrumCircleEvent>;
+
+	constructor(backendUrl: string) {
+		this.serverConnection = new ServerConnection(backendUrl);
+		this.peers = {};
+
+		this.feed = makeSubject<DrumCircleEvent>();
+
+		pipe(
+			this.feed.source,
+			subscribe((e) => console.log('DrumCircleEvent', e))
+		);
+
+		pipe(
+			this.serverConnection.inbound,
+			subscribe((m) => this.handleServerInbound(m))
+		);
+	}
+
+	private addPeerSource(s: Stream) {
+		this.unsubMergedPeers && this.unsubMergedPeers();
+
+		if (this.peerServerOutbound) {
+			this.peerServerOutbound = merge(this.peerServerOutbound, s);
+		} else {
+			this.peerServerOutbound = s;
 		}
 
-		if (message.ice) message.ice = JSON.stringify(message.ice);
+		const { unsubscribe } = pipe(
+			this.peerServerOutbound,
+			subscribe((p) => this.serverConnection.sendMessage(p))
+		);
 
-		this.serverSocket.send(JSON.stringify(message));
+		this.unsubMergedPeers = unsubscribe;
 	}
 
-	onIceCandidate(candidate: any) {
-		this.sendMessage({
-			name: 'ice_candidate',
-			circle_id: this.drumCircleId,
-			member_id: this.userId,
-			ice: candidate
-		});
+	private createPeerConnection(peerId: string) {
+		const { source, next, complete } = makeSubject();
+
+		const wrapped = pipe(
+			source,
+			map((p) => ({ ...p, member_id: peerId, circle_id: this.circleId }))
+		);
+
+		this.addPeerSource(wrapped);
+
+		// TODO: circular ref?
+		this.peers[peerId] = new PeerConnection(next);
+
+		return this.peers[peerId];
 	}
 
-	async processServerMessage(message: any) {
-		const payload = JSON.parse(message);
-		console.log('GOT MESSAGE', payload, { state: this.state });
+	private delegateToPeer(payload: ServerPayload) {
+		if (!payload.member_id) {
+			console.error('Missing peer for payload', payload);
+			return;
+		}
 
+		if (!this.peers[payload.member_id]) {
+			this.createPeerConnection(payload.member_id);
+		}
+
+		const peer = this.peers[payload.member_id];
+
+		peer.handleServerInbound(payload);
+	}
+
+	private handleServerInbound(payload: ServerPayload) {
 		switch (payload.name) {
 			case 'circle_created':
-				if (this.state === State.JOINING) {
-					this.drumCircleId = payload.circle_id;
-					this.setState(State.JOINED);
-				} else {
-					console.log(this.state === State.CREATING, State.CREATING);
-					console.error('Unexpected event', payload);
-				}
+				this.circleId = payload.circle_id;
+				this.feed.next({ name: DrumCircleEventName.JOINED, payload: { circleId: this.circleId } });
 				break;
 			case 'circle_discovery':
-				if (this.state === State.JOINING) {
-					this.drumCircleId = payload.circle_id;
-					this.rtcConnections = payload.members.map(
-						(peerId: any) => new RTCPeer(peerId, (c) => this.onIceCandidate(c))
-					);
-
-					Promise.all(
-						this.rtcConnections.map(async (p) => {
-							const offer = await p.getInitialOffer();
-
-							this.sendMessage({
-								name: 'new_member_rtc_offer',
-								circle_id: this.drumCircleId,
-								member_id: p.peerId,
-								sdp: offer
-							});
-						})
-					);
-				} else {
-					console.error('Unexpected event', payload);
-				}
+				this.circleId = payload.circle_id;
+				this.feed.next({ name: DrumCircleEventName.JOINED, payload: { circleId: this.circleId } });
+				payload.members?.forEach((memberId) => {
+					const peer = this.createPeerConnection(memberId);
+					peer.initiate();
+				});
 				break;
 			case 'new_member_rtc_offer':
-				if (this.state === State.JOINED) {
-					const newPeer = new RTCPeer(payload.member_id, (c) => this.onIceCandidate(c));
-					this.rtcConnections.push(newPeer);
-					const answer = await newPeer.addRemote(JSON.parse(payload.sdp));
-					this.sendMessage({
-						name: 'new_member_rtc_answer',
-						circle_id: this.drumCircleId,
-						// always send ID of joiner (offer)
-						member_id: newPeer.peerId,
-						sdp: answer
-					});
-				} else {
-					console.error('Unexpected event', payload);
-				}
-				break;
-
 			case 'new_member_rtc_answer':
-				if ([State.JOINING, State.JOINED].includes(this.state)) {
-					const newPeer = this.rtcConnections.find((c) => c.peerId === payload.member_id);
-
-					if (!newPeer) {
-						throw new Error('No peer found');
-					}
-
-					await newPeer.setRemoteAnswer(JSON.parse(payload.sdp));
-
-					// Need at least one peer connection to be "joined"
-					this.setState(State.JOINED);
-				} else {
-					console.error('Unexpected event', payload);
-				}
-				break;
-
 			case 'ice_candidate':
-				const broadcastingPeer = this.rtcConnections.find((c) => c.peerId === payload.member_id);
-				const iceCandidate = JSON.parse(payload.ice);
-				await broadcastingPeer?.addIceCandidate(iceCandidate);
-
+				this.delegateToPeer(payload);
 				break;
 		}
 	}
 
-	async createCircle() {
-		if (this.state !== State.NEW) {
-			console.error('Cannot create new circle on this manager');
-		}
-
-		this.setState(State.JOINING);
-
-		this.sendMessage({
+	create() {
+		this.serverConnection.sendMessage({
 			name: 'new_circle'
 		});
-		return this.onChangeToState(State.JOINED);
 	}
 
-	async joinCircle(circleId: string) {
-		if (this.state !== State.NEW) {
-			console.error('Cannot join circle on this manager');
-		}
-
-		this.setState(State.JOINING);
-
-		this.sendMessage({
+	join(circleId: string) {
+		this.serverConnection.sendMessage({
 			name: 'join_circle',
 			circle_id: circleId
 		});
-
-		return this.onChangeToState(State.JOINED);
 	}
-}
 
-export async function initialize(url: string): Promise<ConnectionManager> {
-	const wsUrl = `ws://${url}`;
-	const serverSocket = new WebSocket(wsUrl);
-	const manager = new ConnectionManager(serverSocket);
-
-	serverSocket.addEventListener('message', (event) => {
-		manager.processServerMessage(event.data);
-	});
-
-	return new Promise((resolve) => {
-		serverSocket.addEventListener('open', () => {
-			console.log(`Connected to backend server at ${wsUrl}`);
-			resolve(manager);
-		});
-	});
+	onJoin(joined: (circleId: string) => void) {
+		const { unsubscribe } = pipe(
+			this.feed.source,
+			subscribe((ev) => {
+				if (ev.name === DrumCircleEventName.JOINED && this.circleId) {
+					unsubscribe();
+					joined(this.circleId);
+				}
+			})
+		);
+	}
 }
