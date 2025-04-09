@@ -15,6 +15,7 @@ class PeerConnection {
 	toPeer: (PeerServerPayload: PeerServerPayload) => void;
 
 	private registerChannel(channel: RTCDataChannel, initiating: boolean) {
+		console.log('registering channel', channel.label, initiating);
 		this.channel = channel;
 
 		this.channel.onopen = (event) => {
@@ -34,8 +35,9 @@ class PeerConnection {
 
 		this.rtc = new RTCPeerConnection({
 			iceServers: [
-				{ urls: 'stun:stun4.l.google.com:19302' },
-				{ urls: 'stun:stun4.l.google.com:5349' }
+				{
+					urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+				}
 			]
 		});
 
@@ -46,7 +48,7 @@ class PeerConnection {
 
 		// TODO: kill these if noisy, just for debugging
 		this.rtc.onconnectionstatechange = (e) => {
-			console.log('rtc conn state change', e);
+			console.log('rtc conn state change', this.rtc.connectionState);
 		};
 
 		this.rtc.onicecandidateerror = (e) => {
@@ -77,13 +79,12 @@ class PeerConnection {
 	}
 
 	async handleServerInbound(payload: PeerServerPayload) {
-		console.log('RTCConnection payload from server:', payload);
-
 		switch (payload.name) {
 			case 'new_member_rtc_offer':
 				await this.rtc.setRemoteDescription(JSON.parse(payload.sdp!));
 				const answer = await this.rtc.createAnswer();
-				this.rtc.setLocalDescription(answer);
+				await this.rtc.setLocalDescription(answer);
+
 				this.toPeer({
 					name: 'new_member_rtc_answer',
 					sdp: answer
