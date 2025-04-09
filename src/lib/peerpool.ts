@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import type { Subject } from 'wonka';
 import { makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
 
 type Stream = ReturnType<typeof makeSubject>['source'];
@@ -14,22 +14,6 @@ class PeerConnection {
 	channel?: RTCDataChannel;
 	toPeer: (PeerServerPayload: PeerServerPayload) => void;
 
-	private registerChannel(channel: RTCDataChannel, initiating: boolean) {
-		console.log('registering channel', channel.label, initiating);
-		this.channel = channel;
-
-		this.channel.onopen = (event) => {
-			console.log('Channel opened');
-
-			if (initiating) this.channel?.send('Hello over RTC!!');
-		};
-
-		this.channel.onclose = () => console.log('chan has closed');
-
-		this.channel.onmessage = (e) =>
-			console.log(`Message from DataChannel '${this.channel?.label}' payload '${e.data}'`);
-	}
-
 	constructor(toPeer: (payload: PeerServerPayload) => void) {
 		this.toPeer = toPeer;
 
@@ -42,7 +26,6 @@ class PeerConnection {
 		});
 
 		this.rtc.ondatachannel = (event) => {
-			console.log('Received data channel', event);
 			this.registerChannel(event.channel, false);
 		};
 
@@ -59,11 +42,23 @@ class PeerConnection {
 			ev.candidate &&
 				this.toPeer({
 					name: 'ice_candidate',
-					ice: ev.candidate
+					ice: JSON.stringify(ev.candidate)
 				});
 		};
+	}
 
-		window._the_peer = this;
+	private registerChannel(channel: RTCDataChannel, initiating: boolean) {
+		this.channel = channel;
+
+		this.channel.onopen = (_) => {
+			if (initiating) this.channel?.send('Hello over RTC!!');
+		};
+
+		this.channel.onclose = () => console.log('chan has closed');
+
+		// TODO: expose I/O to peer
+		this.channel.onmessage = (e) =>
+			console.log(`Message from DataChannel '${this.channel?.label}' payload '${e.data}'`);
 	}
 
 	async initiate() {
@@ -74,7 +69,7 @@ class PeerConnection {
 
 		this.toPeer({
 			name: 'new_member_rtc_offer',
-			sdp: offer
+			sdp: JSON.stringify(offer)
 		});
 	}
 
@@ -87,7 +82,7 @@ class PeerConnection {
 
 				this.toPeer({
 					name: 'new_member_rtc_answer',
-					sdp: answer
+					sdp: JSON.stringify(answer)
 				});
 				break;
 			case 'new_member_rtc_answer':
@@ -126,14 +121,7 @@ class ServerConnection {
 		});
 	}
 
-	sendMessage(message: any) {
-		console.log('sending', message);
-		if (message.sdp) {
-			message.sdp = JSON.stringify(message.sdp);
-		}
-
-		if (message.ice) message.ice = JSON.stringify(message.ice);
-
+	sendMessage(message: ServerPayload) {
 		this.socket.send(JSON.stringify(message));
 	}
 }
@@ -147,6 +135,16 @@ type ServerPayload = {
 	ice?: string;
 };
 
+type DrumCircleEvent = {
+	name: DrumCircleEventName;
+	payload?: any;
+};
+
+enum DrumCircleEventName {
+	JOINED,
+	NEW_PEER
+}
+
 export class DrumCircle {
 	serverConnection: ServerConnection;
 	peers: { [peerId: string]: PeerConnection };
@@ -154,9 +152,18 @@ export class DrumCircle {
 	peerServerOutbound?: Stream;
 	unsubMergedPeers?: () => void;
 
+	feed: Subject<DrumCircleEvent>;
+
 	constructor(backendUrl: string) {
 		this.serverConnection = new ServerConnection(backendUrl);
 		this.peers = {};
+
+		this.feed = makeSubject<DrumCircleEvent>();
+
+		pipe(
+			this.feed.source,
+			subscribe((e) => console.log('DrumCircleEvent', e))
+		);
 
 		pipe(
 			this.serverConnection.inbound,
@@ -213,13 +220,14 @@ export class DrumCircle {
 	}
 
 	private handleServerInbound(payload: ServerPayload) {
-		console.log('drum circle handling', payload, payload.member_id);
 		switch (payload.name) {
 			case 'circle_created':
 				this.circleId = payload.circle_id;
+				this.feed.next({ name: DrumCircleEventName.JOINED, payload: { circleId: this.circleId } });
 				break;
 			case 'circle_discovery':
 				this.circleId = payload.circle_id;
+				this.feed.next({ name: DrumCircleEventName.JOINED, payload: { circleId: this.circleId } });
 				payload.members?.forEach((memberId) => {
 					const peer = this.createPeerConnection(memberId);
 					peer.initiate();
@@ -244,5 +252,17 @@ export class DrumCircle {
 			name: 'join_circle',
 			circle_id: circleId
 		});
+	}
+
+	onJoin(joined: (circleId: string) => void) {
+		const { unsubscribe } = pipe(
+			this.feed.source,
+			subscribe((ev) => {
+				if (ev.name === DrumCircleEventName.JOINED && this.circleId) {
+					unsubscribe();
+					joined(this.circleId);
+				}
+			})
+		);
 	}
 }

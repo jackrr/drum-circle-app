@@ -2,12 +2,20 @@
 	import { onMount } from 'svelte';
 	import { DrumCircle } from '$lib/peerpool';
 
-	let circleId = $state('');
+	let circleId = $state();
+	let pendingCircleId = $state('');
 
 	let drumCircle: DrumCircle | undefined = $state();
 
 	onMount(() => {
 		drumCircle = new DrumCircle('localhost:8080');
+
+		// drumCircle.onPeer(p => {
+
+		// })
+		drumCircle.onJoin((id) => {
+			circleId = id;
+		});
 	});
 
 	async function createCircle() {
@@ -20,7 +28,7 @@
 
 	async function joinCircle() {
 		if (drumCircle) {
-			await drumCircle.join(circleId);
+			drumCircle.join(pendingCircleId);
 		} else {
 			console.log('NO CONNECTION TO CONNECT TO!');
 		}
@@ -51,21 +59,23 @@
 			</text>
 		</svg>
 
-		{#if drumCircle}
+		{#if drumCircle && !circleId}
 			<button
 				class="col-span-2 h-12 w-full rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
 				onclick={createCircle}>Create new circle</button
 			>
 			<input
 				class="h-12 w-full rounded border px-3 py-1"
-				bind:value={circleId}
+				bind:value={pendingCircleId}
 				placeholder="Circle ID"
 			/>
 			<button
 				class="h-12 w-full rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
 				onclick={joinCircle}
-				disabled={circleId.length < 1}>Join circle {circleId}</button
+				disabled={pendingCircleId.length < 1}>Join circle {circleId}</button
 			>
+		{:else if circleId}
+			<div>Circle ID {circleId}</div>
 		{/if}
 	</div>
 </div>
