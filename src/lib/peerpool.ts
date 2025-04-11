@@ -1,7 +1,16 @@
 import type { Subject } from 'wonka';
-import { makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
+import { filter, makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
 
-type Stream = ReturnType<typeof makeSubject>['source'];
+export enum P2PMessageName {
+	USERNAME = 'USERNAME',
+	SOUND = 'SOUND'
+}
+
+type P2PMessage = {
+	peerId: string;
+	name: P2PMessageName;
+	payload: any;
+};
 
 type PeerServerPayload = {
 	name: string;
@@ -9,13 +18,20 @@ type PeerServerPayload = {
 	ice?: string;
 };
 
+type PeerP2PMessage = Omit<P2PMessage, 'peerId'>;
+
 class PeerConnection {
 	rtc: RTCPeerConnection;
 	channel?: RTCDataChannel;
-	toPeer: (PeerServerPayload: PeerServerPayload) => void;
 
-	constructor(toPeer: (payload: PeerServerPayload) => void) {
-		this.toPeer = toPeer;
+	incomingP2PMessages: Subject<PeerP2PMessage>;
+	outgoingP2PMessages: Subject<PeerP2PMessage>;
+	outgoingServerMessages: Subject<PeerServerPayload>;
+
+	constructor() {
+		this.incomingP2PMessages = makeSubject<PeerP2PMessage>();
+		this.outgoingP2PMessages = makeSubject<PeerP2PMessage>();
+		this.outgoingServerMessages = makeSubject<PeerServerPayload>();
 
 		this.rtc = new RTCPeerConnection({
 			iceServers: [
@@ -26,7 +42,7 @@ class PeerConnection {
 		});
 
 		this.rtc.ondatachannel = (event) => {
-			this.registerChannel(event.channel, false);
+			this.registerChannel(event.channel);
 		};
 
 		// TODO: kill these if noisy, just for debugging
@@ -40,34 +56,46 @@ class PeerConnection {
 
 		this.rtc.onicecandidate = (ev) => {
 			ev.candidate &&
-				this.toPeer({
+				this.outgoingServerMessages.next({
 					name: 'ice_candidate',
 					ice: JSON.stringify(ev.candidate)
 				});
 		};
 	}
 
-	private registerChannel(channel: RTCDataChannel, initiating: boolean) {
+	private registerChannel(channel: RTCDataChannel) {
 		this.channel = channel;
 
+		let unsubscribe: () => void = () => {};
+
 		this.channel.onopen = (_) => {
-			if (initiating) this.channel?.send('Hello over RTC!!');
+			const piped = pipe(
+				this.outgoingP2PMessages.source,
+				subscribe((m) => {
+					console.log('SENDING', m);
+					this.channel?.send(JSON.stringify(m));
+				})
+			);
+
+			unsubscribe = piped.unsubscribe;
 		};
 
-		this.channel.onclose = () => console.log('chan has closed');
+		this.channel.onclose = () => {
+			console.log('chan has closed');
+			this.incomingP2PMessages.complete();
+			unsubscribe();
+		};
 
-		// TODO: expose I/O to peer
-		this.channel.onmessage = (e) =>
-			console.log(`Message from DataChannel '${this.channel?.label}' payload '${e.data}'`);
+		this.channel.onmessage = (e) => this.incomingP2PMessages.next(JSON.parse(e.data));
 	}
 
 	async initiate() {
-		this.registerChannel(this.rtc.createDataChannel('peer_data_stream'), true);
+		this.registerChannel(this.rtc.createDataChannel('peer_data_stream'));
 
 		const offer = await this.rtc.createOffer();
 		await this.rtc.setLocalDescription(offer);
 
-		this.toPeer({
+		this.outgoingServerMessages.next({
 			name: 'new_member_rtc_offer',
 			sdp: JSON.stringify(offer)
 		});
@@ -80,7 +108,7 @@ class PeerConnection {
 				const answer = await this.rtc.createAnswer();
 				await this.rtc.setLocalDescription(answer);
 
-				this.toPeer({
+				this.outgoingServerMessages.next({
 					name: 'new_member_rtc_answer',
 					sdp: JSON.stringify(answer)
 				});
@@ -97,14 +125,13 @@ class PeerConnection {
 
 class ServerConnection {
 	socket: WebSocket;
-	inbound: Stream;
+	inbound: Subject<ServerPayload>['source'];
 
 	constructor(url: string) {
-		const wsUrl = `ws://${url}`;
-		const { source, next, complete } = makeSubject();
+		const { source, next, complete } = makeSubject<ServerPayload>();
 		this.inbound = source;
 
-		this.socket = new WebSocket(wsUrl);
+		this.socket = new WebSocket(url);
 
 		this.socket.addEventListener('message', (event) => {
 			const payload = JSON.parse(event.data);
@@ -112,11 +139,11 @@ class ServerConnection {
 		});
 
 		this.socket.addEventListener('open', () => {
-			console.log(`Connected to backend server at ${wsUrl}`);
+			console.log(`Connected to backend server at ${url}`);
 		});
 
 		this.socket.addEventListener('close', () => {
-			console.log(`Connected to backend server at ${wsUrl} closed`);
+			console.log(`Connected to backend server at ${url} closed`);
 			next(complete);
 		});
 	}
@@ -140,23 +167,23 @@ type DrumCircleEvent = {
 	payload?: any;
 };
 
-enum DrumCircleEventName {
+export enum DrumCircleEventName {
 	JOINED,
-	NEW_PEER
+	PEER_MESSAGE
 }
 
 export class DrumCircle {
-	serverConnection: ServerConnection;
-	peers: { [peerId: string]: PeerConnection };
-	circleId?: string;
-	peerServerOutbound?: Stream;
-	unsubMergedPeers?: () => void;
+	private serverConnection: ServerConnection;
+	private peers: { [peerId: string]: PeerConnection };
 
+	circleId?: string;
+	userName: string;
 	feed: Subject<DrumCircleEvent>;
 
-	constructor(backendUrl: string) {
+	constructor(backendUrl: string, userName: string) {
 		this.serverConnection = new ServerConnection(backendUrl);
 		this.peers = {};
+		this.userName = userName;
 
 		this.feed = makeSubject<DrumCircleEvent>();
 
@@ -171,52 +198,41 @@ export class DrumCircle {
 		);
 	}
 
-	private addPeerSource(s: Stream) {
-		this.unsubMergedPeers && this.unsubMergedPeers();
-
-		if (this.peerServerOutbound) {
-			this.peerServerOutbound = merge(this.peerServerOutbound, s);
-		} else {
-			this.peerServerOutbound = s;
-		}
-
-		const { unsubscribe } = pipe(
-			this.peerServerOutbound,
-			subscribe((p) => this.serverConnection.sendMessage(p))
-		);
-
-		this.unsubMergedPeers = unsubscribe;
-	}
-
 	private createPeerConnection(peerId: string) {
-		const { source, next, complete } = makeSubject();
+		const peer = new PeerConnection();
 
-		const wrapped = pipe(
-			source,
-			map((p) => ({ ...p, member_id: peerId, circle_id: this.circleId }))
+		// Send server messages to server
+		pipe(
+			peer.outgoingServerMessages.source,
+			map((p) => ({ ...p, member_id: peerId, circle_id: this.circleId })),
+			subscribe((m) => this.serverConnection.sendMessage(m))
 		);
 
-		this.addPeerSource(wrapped);
+		// Send messages from peer to svelteland
+		pipe(
+			peer.incomingP2PMessages.source,
+			subscribe((m) => {
+				this.feed.next({
+					name: DrumCircleEventName.PEER_MESSAGE,
+					payload: {
+						...m,
+						peerId
+					}
+				});
+			})
+		);
+		this.peers[peerId] = peer;
 
-		// TODO: circular ref?
-		this.peers[peerId] = new PeerConnection(next);
+		// Send username
+		// SOB THIS seemingly does not send ... thought this would queue...
+		this.sendToPeer(peer, { name: P2PMessageName.USERNAME, payload: { userName: this.userName } });
 
-		return this.peers[peerId];
+		return peer;
 	}
 
-	private delegateToPeer(payload: ServerPayload) {
-		if (!payload.member_id) {
-			console.error('Missing peer for payload', payload);
-			return;
-		}
-
-		if (!this.peers[payload.member_id]) {
-			this.createPeerConnection(payload.member_id);
-		}
-
-		const peer = this.peers[payload.member_id];
-
-		peer.handleServerInbound(payload);
+	private sendToPeer(p: PeerConnection, payload: PeerP2PMessage) {
+		console.log('sendToPeer', payload);
+		p.outgoingP2PMessages.next(payload);
 	}
 
 	private handleServerInbound(payload: ServerPayload) {
@@ -236,7 +252,19 @@ export class DrumCircle {
 			case 'new_member_rtc_offer':
 			case 'new_member_rtc_answer':
 			case 'ice_candidate':
-				this.delegateToPeer(payload);
+				// Delegate to peer
+				if (!payload.member_id) {
+					console.error('Missing peer for payload', payload);
+					return;
+				}
+
+				if (!this.peers[payload.member_id]) {
+					this.createPeerConnection(payload.member_id);
+				}
+
+				const peer = this.peers[payload.member_id];
+
+				peer.handleServerInbound(payload);
 				break;
 		}
 	}
@@ -254,15 +282,16 @@ export class DrumCircle {
 		});
 	}
 
-	onJoin(joined: (circleId: string) => void) {
-		const { unsubscribe } = pipe(
-			this.feed.source,
-			subscribe((ev) => {
-				if (ev.name === DrumCircleEventName.JOINED && this.circleId) {
-					unsubscribe();
-					joined(this.circleId);
-				}
-			})
-		);
+	setUserName(name: string) {
+		this.userName = name;
+		Object.values(this.peers).forEach((p) => {
+			this.sendToPeer(p, { name: P2PMessageName.USERNAME, payload: { userName: name } });
+		});
+	}
+
+	broadcastSoundPayload(payload: any) {
+		Object.values(this.peers).forEach((p) => {
+			this.sendToPeer(p, { name: P2PMessageName.SOUND, payload });
+		});
 	}
 }

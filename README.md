@@ -4,8 +4,12 @@
 
 ### V0
 
-- Create room button
-- Join form (input for room id, button)
+- Playback and delivery of sound
+- Display of peers w/ name
+
+### Bugs
+
+- Username doesn't send initially
 
 
 ## Features

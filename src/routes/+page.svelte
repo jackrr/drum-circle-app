@@ -1,21 +1,61 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { DrumCircle } from '$lib/peerpool';
+	import { pipe, subscribe } from 'wonka';
+	import { env } from '$env/dynamic/public';
+	import { DrumCircle, DrumCircleEventName, P2PMessageName } from '$lib/peerpool';
+	import { SoundMachine } from '$lib/sound';
+	import Drum from './Drum.svelte';
+	import Name from './Name.svelte';
+	import Peers from './Peers.svelte';
+
+	type Peer = {
+		peerId: string;
+		userName: string;
+	};
 
 	let circleId = $state();
 	let pendingCircleId = $state('');
+	let name = $state('');
+	let peers = $state<Peer[]>([]);
 
 	let drumCircle: DrumCircle | undefined = $state();
+	let soundMachine: SoundMachine | undefined = $state();
 
 	onMount(() => {
-		drumCircle = new DrumCircle('localhost:8080');
+		drumCircle = new DrumCircle(env.PUBLIC_WS_SERVER_HOST, name);
+		soundMachine = new SoundMachine();
 
-		// drumCircle.onPeer(p => {
-
-		// })
-		drumCircle.onJoin((id) => {
-			circleId = id;
-		});
+		const { unsubscribe } = pipe(
+			drumCircle.feed.source,
+			subscribe((ev) => {
+				console.log('DrumCircle event', ev);
+				switch (ev.name) {
+					case DrumCircleEventName.JOINED:
+						circleId = ev.payload.circleId;
+						break;
+					case DrumCircleEventName.PEER_MESSAGE:
+						const { payload, peerId, name } = ev.payload;
+						switch (name) {
+							case P2PMessageName.USERNAME:
+								const { userName } = payload;
+								const existing = peers.find((p) => p.peerId === peerId);
+								if (existing) {
+									existing.userName = userName;
+								} else {
+									peers.push({ peerId, userName });
+								}
+								break;
+							case P2PMessageName.SOUND:
+								soundMachine.handleRemoteSound(payload);
+								// TODO: show sound happened on peer
+								break;
+						}
+						break;
+					default:
+						console.error('Unrecognized event', ev);
+				}
+			})
+		);
 	});
 
 	async function createCircle() {
@@ -32,6 +72,15 @@
 		} else {
 			console.log('NO CONNECTION TO CONNECT TO!');
 		}
+	}
+
+	function onChangeName(newName: string) {
+		if (drumCircle) drumCircle.setUserName(newName);
+		name = newName;
+	}
+
+	function playDrum() {
+		soundMachine.playDrum(drumCircle);
 	}
 </script>
 
@@ -59,6 +108,9 @@
 			</text>
 		</svg>
 
+		<Name {name} changeName={onChangeName} />
+		<Peers {peers} />
+
 		{#if drumCircle && !circleId}
 			<button
 				class="col-span-2 h-12 w-full rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
@@ -76,6 +128,7 @@
 			>
 		{:else if circleId}
 			<div>Circle ID {circleId}</div>
+			<Drum hitme={playDrum} />
 		{/if}
 	</div>
 </div>
