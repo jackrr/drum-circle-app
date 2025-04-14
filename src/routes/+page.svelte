@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { Sound } from '$lib/sound';
 	import { onMount } from 'svelte';
 	import { pipe, subscribe } from 'wonka';
 	import { env } from '$env/dynamic/public';
 	import { DrumCircle, DrumCircleEventName, P2PMessageName } from '$lib/peerpool';
 	import { SoundMachine } from '$lib/sound';
-	import Drum from './Drum.svelte';
+	import Keys from './Keys.svelte';
+
 	import Name from './Name.svelte';
 	import Peers from './Peers.svelte';
 
@@ -46,7 +48,7 @@
 								}
 								break;
 							case P2PMessageName.SOUND:
-								soundMachine.handleRemoteSound(payload);
+								soundMachine?.playSound(payload);
 								// TODO: show sound happened on peer
 								break;
 						}
@@ -79,8 +81,9 @@
 		name = newName;
 	}
 
-	function playDrum() {
-		soundMachine.playDrum(drumCircle);
+	function makeSound(sound: Sound) {
+		soundMachine?.playSound(sound);
+		drumCircle?.broadcastSoundPayload(sound);
 	}
 </script>
 
@@ -127,8 +130,10 @@
 				disabled={pendingCircleId.length < 1}>Join circle {circleId}</button
 			>
 		{:else if circleId}
-			<div>Circle ID {circleId}</div>
-			<Drum hitme={playDrum} />
+			<div class="flex flex-col">
+				<div>Circle ID {circleId}</div>
+				<Keys {makeSound} />
+			</div>
 		{/if}
 	</div>
 </div>

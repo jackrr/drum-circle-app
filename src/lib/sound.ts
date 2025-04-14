@@ -1,9 +1,19 @@
-import type { DrumCircle } from './peerpool';
-
-type Sound = {
-	test: string;
+export type Sound = {
+	type: OscillatorType;
 	freq: number;
 };
+
+const defaultSound = {
+	type: 'sine',
+	freq: 440.0
+};
+
+export function serializableSound(payload: Partial<Sound> = {}) {
+	return {
+		...defaultSound,
+		...payload
+	};
+}
 
 export class SoundMachine {
 	audioContext: AudioContext;
@@ -12,28 +22,15 @@ export class SoundMachine {
 		this.audioContext = new AudioContext();
 	}
 
-	private playDrumSound(sound: Sound) {
-		console.log('making sound');
-
+	playSound(sound: Sound) {
+		console.log(sound);
 		const osc = this.audioContext.createOscillator();
-		osc.type = 'square';
+
+		osc.type = sound.type;
+		osc.frequency.value = sound.freq;
 		osc.connect(this.audioContext.destination);
 		osc.start();
 
 		setTimeout(() => osc.stop(), 200);
-	}
-
-	playDrum(drumCircle: DrumCircle) {
-		const sound = { test: 'a sound!', freq: 440.0 };
-		this.playDrumSound(sound);
-		drumCircle.broadcastSoundPayload({
-			...sound,
-			freq: sound.freq + Math.random() * 440
-		});
-	}
-
-	handleRemoteSound(sound: Sound) {
-		console.log('got sound', sound);
-		this.playDrumSound(sound);
 	}
 }
