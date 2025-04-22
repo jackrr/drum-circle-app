@@ -1,12 +1,12 @@
 type Sound = {
-	id: number;
+	id: string;
 	osc: OscillatorNode;
 	gain: GainNode;
 	timeoutId?: number;
 };
 
 export type PlaySoundEvent = {
-	soundId?: number; // For updates
+	soundId: string; // For updates
 	remote?: boolean; // If remote, make terminating
 	freq: number;
 	gain: number;
@@ -16,16 +16,14 @@ const DEFAULT_TIMEOUT = 10 * 1000; // Kill sound after 10s without update
 
 export class SoundMachine {
 	audioContext: AudioContext;
-	curSoundId: number;
 	activeSounds: Sound[];
 
 	constructor() {
 		this.audioContext = new AudioContext();
-		this.curSoundId = 1;
 		this.activeSounds = [];
 	}
 
-	private getSound(id: number) {
+	private getSound(id: string) {
 		const sound = this.activeSounds.find((s) => s.id === id);
 
 		if (!sound) throw new Error(`No sound with id ${id}`);
@@ -33,7 +31,7 @@ export class SoundMachine {
 		return sound;
 	}
 
-	private debounceCancellation(soundId: number) {
+	private debounceCancellation(soundId: string) {
 		this.activeSounds = this.activeSounds.map((s) => {
 			if (s.id === soundId) {
 				if (s.timeoutId) clearTimeout(s.timeoutId);
@@ -78,11 +76,9 @@ export class SoundMachine {
 		if (event.remote) {
 			this.debounceCancellation(sound.id);
 		}
-
-		return sound.id;
 	}
 
-	stopSound(soundId: number) {
+	stopSound(soundId: string) {
 		const sound = this.getSound(soundId);
 		sound.osc.stop();
 		this.activeSounds = this.activeSounds.filter((s) => s.id !== soundId);
@@ -105,7 +101,7 @@ export class SoundMachine {
 		return {
 			osc,
 			gain,
-			id: this.curSoundId++
+			id: soundEvent.soundId
 		};
 	}
 }
