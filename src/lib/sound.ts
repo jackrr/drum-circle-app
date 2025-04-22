@@ -1,15 +1,28 @@
+export enum EventType {
+	Play = 'Play',
+	End = 'End'
+}
+
+export type PlaySoundEvent = {
+	type: EventType.Play;
+	soundId: string; // For updates
+	remote?: boolean; // If remote, make terminating
+	freq: number;
+	gain: number;
+};
+
+export type EndSoundEvent = {
+	type: EventType.End;
+	soundId: string;
+};
+
+export type SoundEvent = PlaySoundEvent | EndSoundEvent;
+
 type Sound = {
 	id: string;
 	osc: OscillatorNode;
 	gain: GainNode;
 	timeoutId?: number;
-};
-
-export type PlaySoundEvent = {
-	soundId: string; // For updates
-	remote?: boolean; // If remote, make terminating
-	freq: number;
-	gain: number;
 };
 
 const DEFAULT_TIMEOUT = 10 * 1000; // Kill sound after 10s without update
@@ -21,6 +34,19 @@ export class SoundMachine {
 	constructor() {
 		this.audioContext = new AudioContext();
 		this.activeSounds = [];
+	}
+
+	handleEvent(e: SoundEvent) {
+		switch (e.type) {
+			case EventType.Play:
+				this.playSound(e);
+				break;
+			case EventType.End:
+				this.stopSound(e.soundId);
+				break;
+			default:
+				console.error('Unhandled sound event', e);
+		}
 	}
 
 	private getSound(id: string) {
@@ -50,7 +76,7 @@ export class SoundMachine {
 		});
 	}
 
-	playSound(event: PlaySoundEvent) {
+	private playSound(event: PlaySoundEvent) {
 		let sound;
 		if (event.soundId) {
 			console.log('updating sound');
@@ -78,7 +104,7 @@ export class SoundMachine {
 		}
 	}
 
-	stopSound(soundId: string) {
+	private stopSound(soundId: string) {
 		const sound = this.getSound(soundId);
 		sound.osc.stop();
 		this.activeSounds = this.activeSounds.filter((s) => s.id !== soundId);
@@ -86,7 +112,7 @@ export class SoundMachine {
 		if (sound.timeoutId) clearTimeout(sound.timeoutId);
 	}
 
-	createSound(soundEvent: PlaySoundEvent) {
+	private createSound(soundEvent: PlaySoundEvent) {
 		const osc = this.audioContext.createOscillator();
 		const gain = this.audioContext.createGain();
 

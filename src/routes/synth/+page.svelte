@@ -10,7 +10,4 @@
 	});
 </script>
 
-<Synth
-	playSound={soundMachine?.playSound.bind(soundMachine)}
-	stopSound={soundMachine?.stopSound.bind(soundMachine)}
-/>
+<Synth onSoundEvent={soundMachine?.handleEvent.bind(soundMachine)} />

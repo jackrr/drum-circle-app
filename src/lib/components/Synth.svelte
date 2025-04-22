@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { freqs } from '$lib/freqs';
+	import { EventType } from '$lib/sound';
+	import Tooltip from '$lib/components/Tooltip.svelte';
 
 	type Sound = {
 		soundId: string;
@@ -9,9 +11,8 @@
 		y: number;
 	};
 
-	const { playSound, stopSound } = $props();
-	let width = $state(1);
-	let height = $state(1);
+	const { onSoundEvent } = $props();
+	let dimensions = $state();
 
 	let sounds = $state<{ [touchId: string]: Sound }>({});
 
@@ -26,6 +27,7 @@
 
 	function handleTouchUpdate(t: Touch) {
 		const soundId = soundIdFromTouchId(t.identifier);
+		const { width, height } = dimensions;
 
 		const x = t.clientX;
 		const y = t.clientY;
@@ -38,18 +40,20 @@
 		const sound = {
 			soundId,
 			freq,
-			gain,
+			gain
+		};
+
+		onSoundEvent({ ...sound, type: EventType.Play });
+		sounds[soundId] = {
+			...sound,
 			x,
 			y
 		};
-
-		playSound(sound);
-		sounds[soundId] = sound;
 	}
 
 	function handleTouchEnd(t: Touch) {
 		const id = soundIdFromTouchId(t.identifier);
-		stopSound(id);
+		onSoundEvent({ soundId: id, type: EventType.End });
 		delete sounds[id];
 	}
 
@@ -73,15 +77,18 @@
 	ontouchmove={playTouches}
 	ontouchcancel={endTouches}
 	ontouchend={endTouches}
-	bind:clientHeight={height}
-	bind:clientWidth={width}
+	bind:contentRect={dimensions}
 	class="relative h-full w-full"
 >
 	<!-- <SynthSettings /> -->
 	{#each Object.values(sounds) as sound}
-		<div style="left: {sound.x}px; top: {sound.y}px;" class="absolute">
-			{sound.freq},{sound.gain}
-		</div>
+		<Tooltip
+			x={sound.x}
+			y={sound.y}
+			parentHeight={dimensions.height as number}
+			parentWidth={dimensions.width as number}>{sound.freq},{sound.gain}</Tooltip
+		>
+		<div style="{sound.tooltipX}; {sound.tooltipY};" class="fixed"></div>
 	{/each}
 	<div class="absolute bottom-4 flex w-full flex-row content-end justify-between p-4">
 		<div class="">Min: {minFreq}</div>

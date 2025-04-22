@@ -1,4 +1,5 @@
 import type { Subject } from 'wonka';
+import type { SoundEvent } from '$lib/sound';
 import { filter, makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
 
 export enum P2PMessageName {
@@ -289,9 +290,12 @@ export class DrumCircle {
 		});
 	}
 
-	broadcastSoundPayload(payload: any) {
-		Object.values(this.peers).forEach((p) => {
-			this.sendToPeer(p, { name: P2PMessageName.SOUND, payload });
+	broadcastSoundPayload(payload: SoundEvent) {
+		Object.entries(this.peers).forEach(([id, p]) => {
+			this.sendToPeer(p, {
+				name: P2PMessageName.SOUND,
+				payload: { ...payload, soundId: `p-${id}-${payload.soundId}` }
+			});
 		});
 	}
 }
