@@ -1,4 +1,5 @@
 import type { Subject } from 'wonka';
+import { env } from '$env/dynamic/public';
 import type { SoundEvent } from '$lib/sound';
 import { filter, makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
 
@@ -178,13 +179,12 @@ export class DrumCircle {
 	private peers: { [peerId: string]: PeerConnection };
 
 	circleId?: string;
-	userName: string;
+	userName?: string;
 	feed: Subject<DrumCircleEvent>;
 
-	constructor(backendUrl: string, userName: string) {
-		this.serverConnection = new ServerConnection(backendUrl);
+	constructor() {
+		this.serverConnection = new ServerConnection(env.PUBLIC_WS_SERVER_HOST);
 		this.peers = {};
-		this.userName = userName;
 
 		this.feed = makeSubject<DrumCircleEvent>();
 
@@ -271,8 +271,20 @@ export class DrumCircle {
 	}
 
 	create() {
-		this.serverConnection.sendMessage({
-			name: 'new_circle'
+		return new Promise((resolve) => {
+			const { unsubscribe } = pipe(
+				this.feed.source,
+				subscribe((e) => {
+					if (e.name === DrumCircleEventName.JOINED) {
+						resolve(e.payload.circleId);
+						unsubscribe();
+					}
+				})
+			);
+
+			this.serverConnection.sendMessage({
+				name: 'new_circle'
+			});
 		});
 	}
 
