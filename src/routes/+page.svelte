@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { DrumCircle } from '$lib/peerpool';
 
 	import Logo from '$lib/components/Logo.svelte';
@@ -10,8 +10,12 @@
 	// For creation
 	let drumCircle: DrumCircle | undefined = $state();
 
-	onMount(() => {
-		drumCircle = new DrumCircle();
+	onMount(async () => {
+		const dc = new DrumCircle();
+
+		await dc.connect();
+
+		drumCircle = dc;
 	});
 
 	async function createCircle() {
@@ -24,18 +28,18 @@
 	}
 </script>
 
-<div class="h-full w-full flex flex-row content-center flex-wrap">
+<div class="flex h-full w-full flex-row flex-wrap content-center">
 	<div class="grid place-content-center p-12">
 		<Logo size={120} />
 	</div>
-	<div class="flex-grow grid place-content-center p-8">
+	<div class="grid flex-grow place-content-center p-8">
 		<button
 			class="h-12 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
 			onclick={createCircle}>Create new circle</button
 		>
-		<p class="text-center p-4">-- OR --</p>
+		<p class="p-4 text-center">-- OR --</p>
 		<input
-			class="h-12 rounded border px-3 py-1 mb-4"
+			class="mb-4 h-12 rounded border px-3 py-1"
 			bind:value={pendingCircleId}
 			placeholder="Circle ID"
 		/>

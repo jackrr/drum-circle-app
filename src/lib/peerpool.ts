@@ -127,26 +127,30 @@ class PeerConnection {
 
 class ServerConnection {
 	socket: WebSocket;
-	inbound: Subject<ServerPayload>['source'];
+	inbound: Subject<ServerPayload>;
 
 	constructor(url: string) {
-		const { source, next, complete } = makeSubject<ServerPayload>();
-		this.inbound = source;
-
+		this.inbound = makeSubject<ServerPayload>();
 		this.socket = new WebSocket(url);
+	}
 
-		this.socket.addEventListener('message', (event) => {
-			const payload = JSON.parse(event.data);
-			next(payload);
-		});
+	async init() {
+		return new Promise<void>((resolve) => {
+			this.socket.addEventListener('message', (event) => {
+				console.log('message from server', event);
+				const payload = JSON.parse(event.data);
+				this.inbound.next(payload);
+			});
 
-		this.socket.addEventListener('open', () => {
-			console.log(`Connected to backend server at ${url}`);
-		});
+			this.socket.addEventListener('close', () => {
+				console.log('Connection to backend server closed');
+				this.inbound.complete();
+			});
 
-		this.socket.addEventListener('close', () => {
-			console.log(`Connected to backend server at ${url} closed`);
-			next(complete);
+			this.socket.addEventListener('open', () => {
+				console.log('Connected to backend server');
+				resolve();
+			});
 		});
 	}
 
@@ -183,7 +187,6 @@ export class DrumCircle {
 	feed: Subject<DrumCircleEvent>;
 
 	constructor() {
-		this.serverConnection = new ServerConnection(env.PUBLIC_WS_SERVER_HOST);
 		this.peers = {};
 
 		this.feed = makeSubject<DrumCircleEvent>();
@@ -193,10 +196,12 @@ export class DrumCircle {
 			subscribe((e) => console.log('DrumCircleEvent', e))
 		);
 
-		pipe(
-			this.serverConnection.inbound,
-			subscribe((m) => this.handleServerInbound(m))
-		);
+		this.serverConnection = new ServerConnection(env.PUBLIC_WS_SERVER_HOST);
+		pipe(this.serverConnection.inbound.source, subscribe(this.handleServerInbound.bind(this)));
+	}
+
+	async connect() {
+		await this.serverConnection.init();
 	}
 
 	private createPeerConnection(peerId: string) {
@@ -237,6 +242,7 @@ export class DrumCircle {
 	}
 
 	private handleServerInbound(payload: ServerPayload) {
+		console.log('got from server', payload);
 		switch (payload.name) {
 			case 'circle_created':
 				this.circleId = payload.circle_id;
@@ -301,6 +307,24 @@ export class DrumCircle {
 			this.sendToPeer(p, { name: P2PMessageName.USERNAME, payload: { userName: name } });
 		});
 	}
+
+	onSound(cb: (p: SoundEvent) => void) {
+		const { unsubscribe } = pipe(
+			this.feed.source,
+			subscribe((e) => {
+				if (
+					e.name === DrumCircleEventName.PEER_MESSAGE &&
+					e.payload.name === P2PMessageName.SOUND
+				) {
+					cb(e.payload.payload);
+				}
+			})
+		);
+
+		return unsubscribe;
+	}
+
+	// TODO: onPeerUsername(cb: ())
 
 	broadcastSoundPayload(payload: SoundEvent) {
 		Object.entries(this.peers).forEach(([id, p]) => {
