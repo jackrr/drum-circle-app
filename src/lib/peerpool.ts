@@ -5,13 +5,14 @@ import { filter, makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
 
 export enum P2PMessageName {
 	USERNAME = 'USERNAME',
-	SOUND = 'SOUND'
+	SOUND = 'SOUND',
+	DISCONNECT = 'DISCONNECT'
 }
 
 type P2PMessage = {
 	peerId: string;
 	name: P2PMessageName;
-	payload: any;
+	payload?: any;
 };
 
 type PeerServerPayload = {
@@ -84,6 +85,7 @@ class PeerConnection {
 
 		this.channel.onclose = () => {
 			console.log('chan has closed');
+			this.incomingP2PMessages.next({ name: P2PMessageName.DISCONNECT });
 			this.incomingP2PMessages.complete();
 			unsubscribe();
 		};
@@ -231,7 +233,7 @@ export class DrumCircle {
 
 		// Send username
 		// SOB THIS seemingly does not send ... thought this would queue...
-		this.sendToPeer(peer, { name: P2PMessageName.USERNAME, payload: { userName: this.userName } });
+		this.sendToPeer(peer, { name: P2PMessageName.USERNAME, payload: { username: this.userName } });
 
 		return peer;
 	}
@@ -301,22 +303,12 @@ export class DrumCircle {
 		});
 	}
 
-	setUserName(name: string) {
-		this.userName = name;
-		Object.values(this.peers).forEach((p) => {
-			this.sendToPeer(p, { name: P2PMessageName.USERNAME, payload: { userName: name } });
-		});
-	}
-
-	onSound(cb: (p: SoundEvent) => void) {
+	onPeerEvent(cb: (m: P2PMessage) => void) {
 		const { unsubscribe } = pipe(
 			this.feed.source,
 			subscribe((e) => {
-				if (
-					e.name === DrumCircleEventName.PEER_MESSAGE &&
-					e.payload.name === P2PMessageName.SOUND
-				) {
-					cb(e.payload.payload);
+				if (e.name === DrumCircleEventName.PEER_MESSAGE) {
+					cb(e.payload);
 				}
 			})
 		);
@@ -324,13 +316,18 @@ export class DrumCircle {
 		return unsubscribe;
 	}
 
-	// TODO: onPeerUsername(cb: ())
+	setUserName(name: string) {
+		this.userName = name;
+		Object.values(this.peers).forEach((p) => {
+			this.sendToPeer(p, { name: P2PMessageName.USERNAME, payload: { username: name } });
+		});
+	}
 
 	broadcastSoundPayload(payload: SoundEvent) {
-		Object.entries(this.peers).forEach(([id, p]) => {
+		Object.values(this.peers).forEach((p) => {
 			this.sendToPeer(p, {
 				name: P2PMessageName.SOUND,
-				payload: { ...payload, soundId: `p-${id}-${payload.soundId}` }
+				payload
 			});
 		});
 	}

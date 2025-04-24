@@ -6,7 +6,6 @@ export enum EventType {
 export type PlaySoundEvent = {
 	type: EventType.Play;
 	soundId: string; // For updates
-	remote?: boolean; // If remote, make terminating
 	freq: number;
 	gain: number;
 };
@@ -30,10 +29,14 @@ const DEFAULT_TIMEOUT = 10 * 1000; // Kill sound after 10s without update
 export class SoundMachine {
 	audioContext: AudioContext;
 	activeSounds: Sound[];
+	// remote is true if representing sounds from a device across a
+	// network partition
+	remote: boolean;
 
-	constructor() {
-		this.audioContext = new AudioContext();
+	constructor(ac: AudioContext, remote: boolean = false) {
+		this.audioContext = ac;
 		this.activeSounds = [];
+		this.remote = remote;
 	}
 
 	handleEvent(e: SoundEvent) {
@@ -99,7 +102,7 @@ export class SoundMachine {
 		}
 
 		// "Debounce" remote sound stopping on create+update
-		if (event.remote) {
+		if (this.remote) {
 			this.debounceCancellation(sound.id);
 		}
 	}
