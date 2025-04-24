@@ -6,7 +6,10 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		%sveltekit.head%
 	</head>
-	<body data-sveltekit-preload-data="hover" class="overscroll-none">
+	<body
+		data-sveltekit-preload-data="hover"
+		class="fixed h-full w-full overflow-hidden overscroll-none"
+	>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
