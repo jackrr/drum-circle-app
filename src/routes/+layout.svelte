@@ -4,6 +4,6 @@
 	let { children } = $props();
 </script>
 
-<div class="h-100 ">
+<div class="h-screen w-screen">
 	{@render children()}
 </div>
