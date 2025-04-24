@@ -1,12 +1,11 @@
 <script lang="ts">
-	import type { SoundEvent } from '$lib/sound';
-	import type { Peer } from '$lib/components/Peers.svelte';
+	import type { SoundEvent } from '$lib/sound.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
-	import { SoundMachine } from '$lib/sound';
+	import { SoundMachine } from '$lib/sound.svelte';
 	import Synth from '$lib/components/Synth.svelte';
-	import Peers from '$lib/components/Peers.svelte';
+	import Peers, { Peer } from '$lib/components/Peers.svelte';
 
 	const circleId = page.params.circle_id;
 
@@ -25,10 +24,7 @@
 			let peer = peers[peerId];
 
 			if (!peer) {
-				peer = {
-					peerId,
-					sound: new SoundMachine(audioContext, true)
-				};
+				peer = new Peer(peerId, new SoundMachine(audioContext, true));
 			}
 
 			peers = { ...peers, [peerId]: peer };

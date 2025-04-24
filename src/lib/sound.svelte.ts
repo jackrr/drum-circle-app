@@ -32,6 +32,7 @@ export class SoundMachine {
 	// remote is true if representing sounds from a device across a
 	// network partition
 	remote: boolean;
+	playing = $state(false);
 
 	constructor(ac: AudioContext, remote: boolean = false) {
 		this.audioContext = ac;
@@ -80,6 +81,7 @@ export class SoundMachine {
 	}
 
 	private playSound(event: PlaySoundEvent) {
+		this.playing = true;
 		let sound;
 		if (event.soundId) {
 			console.log('updating sound');
@@ -111,6 +113,8 @@ export class SoundMachine {
 		const sound = this.getSound(soundId);
 		sound.osc.stop();
 		this.activeSounds = this.activeSounds.filter((s) => s.id !== soundId);
+
+		this.playing = this.activeSounds.length !== 0;
 
 		if (sound.timeoutId) clearTimeout(sound.timeoutId);
 	}

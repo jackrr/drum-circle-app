@@ -1,7 +1,7 @@
 import type { Subject } from 'wonka';
 import { env } from '$env/dynamic/public';
-import type { SoundEvent } from '$lib/sound';
-import { filter, makeSubject, merge, map, never, subscribe, pipe } from 'wonka';
+import type { SoundEvent } from '$lib/sound.svelte';
+import { makeSubject, map, subscribe, pipe } from 'wonka';
 
 export enum P2PMessageName {
 	USERNAME = 'USERNAME',

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { freqs } from '$lib/freqs';
-	import { EventType } from '$lib/sound';
+	import { EventType } from '$lib/sound.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 
 	type Sound = {
