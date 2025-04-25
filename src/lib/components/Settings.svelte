@@ -2,14 +2,8 @@
 	import Username from '$lib/components/Username.svelte';
 	import FrequencyPicker from '$lib/components/FrequencyPicker.svelte';
 	import Choice from '$lib/components/Choice.svelte';
-	import { notes } from '$lib/freqs';
-	import {
-		userSettings,
-		thereminSettings,
-		Instruments,
-		synthSettings,
-		Scales
-	} from '$lib/settings.svelte';
+	import { noteNames, scaleNames } from '$lib/freqs';
+	import { userSettings, thereminSettings, Instruments, synthSettings } from '$lib/settings.svelte';
 
 	let dialog = $state<HTMLDialogElement>();
 	let showModal = $state(false);
@@ -53,19 +47,19 @@
 			<div class="flex h-12 flex-row content-center">
 				{@render label('Root:')}
 				<select bind:value={synthSettings.rootNote}>
-					{#each notes as note}
+					{#each noteNames as note}
 						<option value={note}>{note}</option>
 					{/each}
 				</select>
 				<div class="flex flex-row content-center gap-2">
 					<div>{synthSettings.rootOctave}</div>
-					<input type="range" bind:value={synthSettings.rootOctave} step={1} min={0} max={7} />
+					<input type="range" bind:value={synthSettings.rootOctave} step={1} min={0} max={8} />
 				</div>
 			</div>
 
 			<div class="flex h-12 flex-row content-center">
 				{@render label('Scale')}
-				<Choice bind:choice={synthSettings.scale} choices={Object.values(Scales)} />
+				<Choice bind:choice={synthSettings.scale} choices={Object.values(scaleNames)} />
 			</div>
 
 			<div class="flex h-12 flex-row content-center">

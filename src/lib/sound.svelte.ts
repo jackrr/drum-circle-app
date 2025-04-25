@@ -84,7 +84,6 @@ export class SoundMachine {
 		this.playing = true;
 		let sound;
 		if (event.soundId) {
-			console.log('updating sound');
 			try {
 				sound = this.getSound(event.soundId);
 				sound.osc.frequency.value = event.freq;
@@ -98,7 +97,6 @@ export class SoundMachine {
 		// original create payload was dropped on network. If so, just
 		// make one from the update payload
 		if (!sound) {
-			console.log('making sound');
 			sound = this.createSound(event);
 			this.activeSounds.push(sound);
 		}

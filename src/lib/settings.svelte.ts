@@ -1,13 +1,5 @@
 import { browser } from '$app/environment';
-import { freqs } from '$lib/freqs';
-
-export enum Scales {
-	Chromatic = 'Chromatic',
-	Pentatonic = 'Pentatonic',
-	Major = 'Major',
-	Minor = 'Minor',
-	Blues = 'Blues'
-}
+import { Note, NoteName, Scale } from '$lib/freqs';
 
 export enum Instruments {
 	Theremin = 'Theremin',
@@ -43,10 +35,12 @@ export const userSettings = $state({
 
 export const thereminSettings = $state({
 	[ThereminSettingsKeys.minFreq]: parseFloat(
-		getSetting('theremin_' + ThereminSettingsKeys.minFreq) || freqs['C'][0].toString()
+		getSetting('theremin_' + ThereminSettingsKeys.minFreq) ||
+			new Note(NoteName.C, 0).freq.toString()
 	),
 	[ThereminSettingsKeys.maxFreq]: parseFloat(
-		getSetting('theremin_' + ThereminSettingsKeys.maxFreq) || freqs['B'][4].toString()
+		getSetting('theremin_' + ThereminSettingsKeys.maxFreq) ||
+			new Note(NoteName.B, 4).freq.toString()
 	)
 });
 
@@ -55,7 +49,7 @@ export const synthSettings = $state({
 	[SynthSettingsKeys.rootOctave]: parseInt(
 		getSetting('synth_' + SynthSettingsKeys.rootOctave) || '3'
 	),
-	[SynthSettingsKeys.scale]: getSetting('synth_' + SynthSettingsKeys.scale) || Scales.Pentatonic,
+	[SynthSettingsKeys.scale]: getSetting('synth_' + SynthSettingsKeys.scale) || Scale.Pentatonic,
 	[SynthSettingsKeys.numKeys]: parseInt(getSetting('synth_' + SynthSettingsKeys.numKeys) || '10')
 });
 

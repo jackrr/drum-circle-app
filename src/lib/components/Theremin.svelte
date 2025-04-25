@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { freqs } from '$lib/freqs';
 	import { EventType } from '$lib/sound.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { thereminSettings } from '$lib/settings.svelte';
@@ -21,7 +20,7 @@
 	let maxGain = $state(1.0);
 
 	function soundIdFromTouchId(touchId: number) {
-		return `synth-${touchId}`;
+		return `theremin-${touchId}`;
 	}
 
 	function handleTouchUpdate(t: Touch) {
