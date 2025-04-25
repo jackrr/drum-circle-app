@@ -2,6 +2,7 @@
 	import { freqs } from '$lib/freqs';
 	import { EventType } from '$lib/sound.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
+	import { thereminSettings } from '$lib/settings.svelte';
 
 	type Sound = {
 		soundId: string;
@@ -16,8 +17,6 @@
 
 	let sounds = $state<{ [touchId: string]: Sound }>({});
 
-	let minFreq = $state(parseFloat(freqs['C'][2]));
-	let maxFreq = $state(parseFloat(freqs['C'][6]));
 	let minGain = $state(0.2);
 	let maxGain = $state(1.0);
 
@@ -34,7 +33,9 @@
 
 		const round = (val: number) => Math.round(val * 100) / 100;
 
-		const freq = round(minFreq + (maxFreq - minFreq) * (x / width));
+		const freq = round(
+			thereminSettings.minFreq + (thereminSettings.maxFreq - thereminSettings.minFreq) * (x / width)
+		);
 		const gain = round(maxGain - (maxGain - minGain) * (y / height));
 
 		const sound = {
@@ -91,7 +92,7 @@
 		<div style="{sound.tooltipX}; {sound.tooltipY};" class="fixed"></div>
 	{/each}
 	<div class="absolute bottom-4 flex w-full flex-row content-end justify-between p-4">
-		<div class="">Min: {minFreq}</div>
-		<div class="">Max: {maxFreq}</div>
+		<div class="">Min: {thereminSettings.minFreq}</div>
+		<div class="">Max: {thereminSettings.maxFreq}</div>
 	</div>
 </div>
