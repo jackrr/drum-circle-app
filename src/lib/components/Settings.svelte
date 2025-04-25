@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Username from '$lib/components/Username.svelte';
-	import { userSettings, synthSettings } from '$lib/settings.svelte';
+	import { userSettings } from '$lib/settings.svelte';
 
 	let dialog = $state<HTMLDialogElement>();
 	let showModal = $state(false);

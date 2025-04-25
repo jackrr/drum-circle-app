@@ -5,7 +5,7 @@
 	import { userSettings } from '$lib/settings.svelte';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
 	import { SoundMachine } from '$lib/sound.svelte';
-	import Synth from '$lib/components/Synth.svelte';
+	import Theremin from '$lib/components/Theremin.svelte';
 	import Peers, { Peer } from '$lib/components/Peers.svelte';
 	import Settings from '$lib/components/Settings.svelte';
 
@@ -76,6 +76,6 @@
 	</div>
 
 	<div class="flex-grow">
-		<Synth {onSoundEvent} />
+		<Theremin {onSoundEvent} />
 	</div>
 </div>

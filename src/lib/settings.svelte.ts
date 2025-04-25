@@ -1,10 +1,15 @@
 import { browser } from '$app/environment';
 
+export enum Instruments {
+	Theremin = 'Theremin'
+}
+
 export const userSettings = $state({
-	username: (browser && localStorage.getItem('username')) || ''
+	username: (browser && localStorage.getItem('username')) || '',
+	instrument: Instruments.Theremin
 });
 
-export const synthSettings = $state({});
+export const thereminSettings = $state({});
 
 const destroy = $effect.root(() => {
 	$effect(() => {
