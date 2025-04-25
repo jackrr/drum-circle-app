@@ -19,6 +19,8 @@
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
+		"@iconify-json/meteor-icons": "^1.2.1",
+		"@iconify/tailwind4": "^1.0.6",
 		"@playwright/test": "^1.49.1",
 		"@sveltejs/adapter-auto": "^4.0.0",
 		"@sveltejs/adapter-node": "^5.2.12",

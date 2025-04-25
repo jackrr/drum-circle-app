@@ -6,7 +6,8 @@ import { makeSubject, map, subscribe, pipe } from 'wonka';
 export enum P2PMessageName {
 	USERNAME = 'USERNAME',
 	SOUND = 'SOUND',
-	DISCONNECT = 'DISCONNECT'
+	DISCONNECT = 'DISCONNECT',
+	CONNECTED = 'CONNECTED'
 }
 
 type P2PMessage = {
@@ -72,19 +73,21 @@ class PeerConnection {
 		let unsubscribe: () => void = () => {};
 
 		this.channel.onopen = (_) => {
+			console.log('data channel opened');
 			const piped = pipe(
 				this.outgoingP2PMessages.source,
 				subscribe((m) => {
-					console.log('SENDING', m);
 					this.channel?.send(JSON.stringify(m));
 				})
 			);
+
+			this.incomingP2PMessages.next({ name: P2PMessageName.CONNECTED });
 
 			unsubscribe = piped.unsubscribe;
 		};
 
 		this.channel.onclose = () => {
-			console.log('chan has closed');
+			console.log('data channel has closed');
 			this.incomingP2PMessages.next({ name: P2PMessageName.DISCONNECT });
 			this.incomingP2PMessages.complete();
 			unsubscribe();
@@ -139,7 +142,6 @@ class ServerConnection {
 	async init() {
 		return new Promise<void>((resolve) => {
 			this.socket.addEventListener('message', (event) => {
-				console.log('message from server', event);
 				const payload = JSON.parse(event.data);
 				this.inbound.next(payload);
 			});
@@ -185,18 +187,13 @@ export class DrumCircle {
 	private peers: { [peerId: string]: PeerConnection };
 
 	circleId?: string;
-	userName?: string;
+	username?: string;
 	feed: Subject<DrumCircleEvent>;
 
 	constructor() {
 		this.peers = {};
 
 		this.feed = makeSubject<DrumCircleEvent>();
-
-		pipe(
-			this.feed.source,
-			subscribe((e) => console.log('DrumCircleEvent', e))
-		);
 
 		this.serverConnection = new ServerConnection(env.PUBLIC_WS_SERVER_HOST);
 		pipe(this.serverConnection.inbound.source, subscribe(this.handleServerInbound.bind(this)));
@@ -220,6 +217,14 @@ export class DrumCircle {
 		pipe(
 			peer.incomingP2PMessages.source,
 			subscribe((m) => {
+				// if connected event, respond with username
+				if (m.name === P2PMessageName.CONNECTED) {
+					this.sendToPeer(peer, {
+						name: P2PMessageName.USERNAME,
+						payload: { username: this.username }
+					});
+				}
+
 				this.feed.next({
 					name: DrumCircleEventName.PEER_MESSAGE,
 					payload: {
@@ -231,20 +236,14 @@ export class DrumCircle {
 		);
 		this.peers[peerId] = peer;
 
-		// Send username
-		// SOB THIS seemingly does not send ... thought this would queue...
-		this.sendToPeer(peer, { name: P2PMessageName.USERNAME, payload: { username: this.userName } });
-
 		return peer;
 	}
 
 	private sendToPeer(p: PeerConnection, payload: PeerP2PMessage) {
-		console.log('sendToPeer', payload);
 		p.outgoingP2PMessages.next(payload);
 	}
 
 	private handleServerInbound(payload: ServerPayload) {
-		console.log('got from server', payload);
 		switch (payload.name) {
 			case 'circle_created':
 				this.circleId = payload.circle_id;
@@ -316,10 +315,10 @@ export class DrumCircle {
 		return unsubscribe;
 	}
 
-	setUserName(name: string) {
-		this.userName = name;
+	setUserName(username: string) {
+		this.username = username;
 		Object.values(this.peers).forEach((p) => {
-			this.sendToPeer(p, { name: P2PMessageName.USERNAME, payload: { username: name } });
+			this.sendToPeer(p, { name: P2PMessageName.USERNAME, payload: { username } });
 		});
 	}
 

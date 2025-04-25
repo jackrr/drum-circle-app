@@ -2,10 +2,12 @@
 	import type { SoundEvent } from '$lib/sound.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { userSettings } from '$lib/settings.svelte';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
 	import { SoundMachine } from '$lib/sound.svelte';
 	import Synth from '$lib/components/Synth.svelte';
 	import Peers, { Peer } from '$lib/components/Peers.svelte';
+	import Settings from '$lib/components/Settings.svelte';
 
 	const circleId = page.params.circle_id;
 
@@ -42,6 +44,10 @@
 					delete peers[peerId];
 					break;
 
+				case P2PMessageName.CONNECTED:
+					// noop
+					break;
+
 				default:
 					console.warn("Don't know how to handle peer event", ev);
 			}
@@ -49,6 +55,10 @@
 
 		await drumCircle.connect();
 		drumCircle.join(circleId);
+	});
+
+	$effect(() => {
+		userSettings.username !== '' && drumCircle?.setUserName(userSettings.username);
 	});
 
 	function onSoundEvent(sound: SoundEvent) {
@@ -59,9 +69,10 @@
 
 <!-- <Name {name} changeName={onChangeName} /> -->
 <div class="flex h-full w-full flex-col">
-	<div class="flex flex-row">
-		<div>Circle ID {circleId}</div>
+	<div class="flex flex-row content-center justify-between">
+		<h1 class="px-4 text-lg">Circle ID {circleId}</h1>
 		<Peers peers={Object.values(peers)} />
+		<Settings />
 	</div>
 
 	<div class="flex-grow">
