@@ -81,7 +81,6 @@
 	bind:contentRect={dimensions}
 	class="relative h-full w-full"
 >
-	<!-- <SynthSettings /> -->
 	{#each Object.values(sounds) as sound}
 		<Tooltip
 			x={sound.x}

@@ -1,8 +1,17 @@
 import { browser } from '$app/environment';
 import { freqs } from '$lib/freqs';
 
+export enum Scales {
+	Chromatic = 'Chromatic',
+	Pentatonic = 'Pentatonic',
+	Major = 'Major',
+	Minor = 'Minor',
+	Blues = 'Blues'
+}
+
 export enum Instruments {
-	Theremin = 'Theremin'
+	Theremin = 'Theremin',
+	Synth = 'Synth'
 }
 
 enum UserSettingsKeys {
@@ -13,6 +22,13 @@ enum UserSettingsKeys {
 enum ThereminSettingsKeys {
 	minFreq = 'minFreq',
 	maxFreq = 'maxFreq'
+}
+
+enum SynthSettingsKeys {
+	rootNote = 'rootNote',
+	rootOctave = 'rootOctave',
+	scale = 'scale',
+	numKeys = 'numKeys'
 }
 
 function getSetting(key: string) {
@@ -34,6 +50,15 @@ export const thereminSettings = $state({
 	)
 });
 
+export const synthSettings = $state({
+	[SynthSettingsKeys.rootNote]: getSetting('synth_' + SynthSettingsKeys.rootNote) || 'C',
+	[SynthSettingsKeys.rootOctave]: parseInt(
+		getSetting('synth_' + SynthSettingsKeys.rootOctave) || '3'
+	),
+	[SynthSettingsKeys.scale]: getSetting('synth_' + SynthSettingsKeys.scale) || Scales.Pentatonic,
+	[SynthSettingsKeys.numKeys]: parseInt(getSetting('synth_' + SynthSettingsKeys.numKeys) || '10')
+});
+
 const destroy = $effect.root(() => {
 	$effect(() => {
 		for (const key in UserSettingsKeys) {
@@ -45,8 +70,16 @@ const destroy = $effect.root(() => {
 	});
 
 	$effect(() => {
+		for (const key in SynthSettingsKeys) {
+			const lsKey = 'synth_' + key;
+			if (synthSettings[key].toString !== localStorage.getItem(lsKey)) {
+				localStorage.setItem(lsKey, synthSettings[key]);
+			}
+		}
+	});
+
+	$effect(() => {
 		for (const key in ThereminSettingsKeys) {
-			console.log({ thereminSettings, key });
 			const lsKey = 'theremin_' + key;
 			if (thereminSettings[key].toString !== localStorage.getItem(lsKey)) {
 				localStorage.setItem(lsKey, thereminSettings[key]);

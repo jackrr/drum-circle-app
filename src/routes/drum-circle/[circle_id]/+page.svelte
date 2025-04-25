@@ -2,10 +2,11 @@
 	import type { SoundEvent } from '$lib/sound.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { userSettings } from '$lib/settings.svelte';
+	import { Instruments, userSettings } from '$lib/settings.svelte';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
 	import { SoundMachine } from '$lib/sound.svelte';
 	import Theremin from '$lib/components/Theremin.svelte';
+	import Synth from '$lib/components/Synth.svelte';
 	import Peers, { Peer } from '$lib/components/Peers.svelte';
 	import Settings from '$lib/components/Settings.svelte';
 
@@ -76,6 +77,11 @@
 	</div>
 
 	<div class="flex-grow">
-		<Theremin {onSoundEvent} />
+		{#if userSettings.instrument === Instruments.Theremin}
+			<Theremin {onSoundEvent} />
+		{/if}
+		{#if userSettings.instrument === Instruments.Synth}
+			<Synth {onSoundEvent} />
+		{/if}
 	</div>
 </div>

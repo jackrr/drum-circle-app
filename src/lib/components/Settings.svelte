@@ -1,7 +1,15 @@
 <script lang="ts">
 	import Username from '$lib/components/Username.svelte';
 	import FrequencyPicker from '$lib/components/FrequencyPicker.svelte';
-	import { userSettings, thereminSettings } from '$lib/settings.svelte';
+	import Choice from '$lib/components/Choice.svelte';
+	import { notes } from '$lib/freqs';
+	import {
+		userSettings,
+		thereminSettings,
+		Instruments,
+		synthSettings,
+		Scales
+	} from '$lib/settings.svelte';
 
 	let dialog = $state<HTMLDialogElement>();
 	let showModal = $state(false);
@@ -37,21 +45,53 @@
 			<Username bind:value={userSettings.username} />
 		</div>
 		<div class="flex h-12 flex-row content-center">
-			{@render label(`Min Freq: ${thereminSettings.minFreq}`)}
-			<FrequencyPicker
-				bind:freq={thereminSettings.minFreq}
-				min={0}
-				max={thereminSettings.maxFreq}
-			/>
+			{@render label('Instrument:')}
+			<Choice bind:choice={userSettings.instrument} choices={Object.values(Instruments)} />
 		</div>
-		<div class="flex h-12 flex-row content-center">
-			{@render label(`Min Freq: ${thereminSettings.maxFreq}`)}
-			<FrequencyPicker
-				bind:freq={thereminSettings.maxFreq}
-				min={thereminSettings.minFreq + 2}
-				max={8000.0}
-			/>
-		</div>
+
+		{#if userSettings.instrument === Instruments.Synth}
+			<div class="flex h-12 flex-row content-center">
+				{@render label('Root:')}
+				<select bind:value={synthSettings.rootNote}>
+					{#each notes as note}
+						<option value={note}>{note}</option>
+					{/each}
+				</select>
+				<div class="flex flex-row content-center gap-2">
+					<div>{synthSettings.rootOctave}</div>
+					<input type="range" bind:value={synthSettings.rootOctave} step={1} min={0} max={7} />
+				</div>
+			</div>
+
+			<div class="flex h-12 flex-row content-center">
+				{@render label('Scale')}
+				<Choice bind:choice={synthSettings.scale} choices={Object.values(Scales)} />
+			</div>
+
+			<div class="flex h-12 flex-row content-center">
+				{@render label(`Keys: ${synthSettings.numKeys}`)}
+				<input type="range" bind:value={synthSettings.numKeys} step={1} min={3} max={20} />
+			</div>
+		{/if}
+
+		{#if userSettings.instrument === Instruments.Theremin}
+			<div class="flex h-12 flex-row content-center">
+				{@render label(`Min Freq: ${thereminSettings.minFreq}`)}
+				<FrequencyPicker
+					bind:freq={thereminSettings.minFreq}
+					min={0}
+					max={thereminSettings.maxFreq}
+				/>
+			</div>
+			<div class="flex h-12 flex-row content-center">
+				{@render label(`Min Freq: ${thereminSettings.maxFreq}`)}
+				<FrequencyPicker
+					bind:freq={thereminSettings.maxFreq}
+					min={thereminSettings.minFreq + 2}
+					max={8000.0}
+				/>
+			</div>
+		{/if}
 	</div>
 	<button class="text-left" onclick={() => (showModal = false)}>Done</button>
 </dialog>
