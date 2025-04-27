@@ -3,7 +3,8 @@
 	import FrequencyPicker from '$lib/components/FrequencyPicker.svelte';
 	import Choice from '$lib/components/Choice.svelte';
 	import { noteNames, scaleNames } from '$lib/freqs';
-	import { userSettings, thereminSettings, Instruments, synthSettings } from '$lib/settings.svelte';
+	import { Instruments } from '$lib/sound.svelte';
+	import { userSettings, thereminSettings, synthSettings } from '$lib/settings.svelte';
 
 	let dialog = $state<HTMLDialogElement>();
 	let showModal = $state(false);

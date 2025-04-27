@@ -1,3 +1,8 @@
+export enum Instruments {
+	Theremin = 'Theremin',
+	Synth = 'Synth'
+}
+
 export enum EventType {
 	Play = 'Play',
 	End = 'End'
@@ -5,6 +10,7 @@ export enum EventType {
 
 export type PlaySoundEvent = {
 	type: EventType.Play;
+	instrument: Instruments;
 	soundId: string; // For updates
 	freq: number;
 	gain: number;
@@ -89,7 +95,7 @@ export class SoundMachine {
 				sound.osc.frequency.value = event.freq;
 				sound.gain.gain.value = event.gain;
 			} catch (e) {
-				console.warn(e);
+				// Expected on first play event
 			}
 		}
 

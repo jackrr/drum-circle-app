@@ -29,7 +29,7 @@ export enum NoteName {
 	B = 'B'
 }
 
-type Octave = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type Octave = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export const noteNames = Object.values(NoteName);
 

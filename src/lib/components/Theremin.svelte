@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { EventType } from '$lib/sound.svelte';
+	import { EventType, Instruments } from '$lib/sound.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { thereminSettings } from '$lib/settings.svelte';
 
@@ -43,7 +43,7 @@
 			gain
 		};
 
-		onSoundEvent({ ...sound, type: EventType.Play });
+		onSoundEvent({ ...sound, type: EventType.Play, instrument: Instruments.Theremin });
 		sounds[soundId] = {
 			...sound,
 			x,

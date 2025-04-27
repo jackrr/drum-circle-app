@@ -2,9 +2,9 @@
 	import type { SoundEvent } from '$lib/sound.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { Instruments, userSettings } from '$lib/settings.svelte';
+	import { userSettings } from '$lib/settings.svelte';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
-	import { SoundMachine } from '$lib/sound.svelte';
+	import { SoundMachine, Instruments } from '$lib/sound.svelte';
 	import Theremin from '$lib/components/Theremin.svelte';
 	import Synth from '$lib/components/Synth.svelte';
 	import Peers, { Peer } from '$lib/components/Peers.svelte';

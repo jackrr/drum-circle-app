@@ -1,10 +1,6 @@
 import { browser } from '$app/environment';
 import { Note, NoteName, Scale } from '$lib/freqs';
-
-export enum Instruments {
-	Theremin = 'Theremin',
-	Synth = 'Synth'
-}
+import { Instruments } from '$lib/sound.svelte';
 
 enum UserSettingsKeys {
 	username = 'username',

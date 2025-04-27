@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { Note, generateScale } from '$lib/freqs';
-	import { EventType } from '$lib/sound.svelte';
+	import type { Octave } from '$lib/freqs';
+	import { Note, NoteName, Scale, generateScale } from '$lib/freqs';
+	import { EventType, Instruments } from '$lib/sound.svelte';
 	import { synthSettings } from '$lib/settings.svelte';
 	const { onSoundEvent } = $props();
 
@@ -20,7 +21,8 @@
 		onSoundEvent({
 			soundId,
 			freq: note.freq,
-			type: EventType.Play
+			type: EventType.Play,
+			instrument: Instruments.Synth
 		});
 		sounds[soundId] = {
 			soundId,
@@ -36,8 +38,8 @@
 
 	let notes: Note[] = $derived(
 		generateScale(
-			new Note(synthSettings.rootNote, synthSettings.rootOctave),
-			synthSettings.scale,
+			new Note(synthSettings.rootNote as NoteName, synthSettings.rootOctave as Octave),
+			synthSettings.scale as Scale,
 			synthSettings.numKeys
 		)
 	);
@@ -47,8 +49,12 @@
 	{#each notes as note}
 		<div
 			class="grid grow place-content-center border-r border-l"
-			onpointerover={(e) => startSound(e.pointerId, note)}
-			onpointerout={(e) => endSound(e.pointerId)}
+			onpointerenter={(e) => {
+				// Release pointer capture allows drag across keys
+				e.target?.releasePointerCapture(e.pointerId);
+				startSound(e.pointerId, note);
+			}}
+			onpointerleave={(e) => endSound(e.pointerId)}
 		>
 			{note.label()}
 		</div>
