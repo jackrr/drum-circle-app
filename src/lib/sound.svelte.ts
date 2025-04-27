@@ -23,10 +23,14 @@ export type EndSoundEvent = {
 
 export type SoundEvent = PlaySoundEvent | EndSoundEvent;
 
-type Sound = {
-	id: string;
+type SoundComponent = {
 	osc: OscillatorNode;
 	gain: GainNode;
+};
+
+type Sound = {
+	id: string;
+	components: SoundComponent[];
 	timeoutId?: number;
 };
 
@@ -38,12 +42,23 @@ export class SoundMachine {
 	// remote is true if representing sounds from a device across a
 	// network partition
 	remote: boolean;
+	reverbBuffer?: AudioBuffer;
 	playing = $state(false);
 
 	constructor(ac: AudioContext, remote: boolean = false) {
 		this.audioContext = ac;
 		this.activeSounds = [];
 		this.remote = remote;
+
+		this.init();
+	}
+
+	async init() {
+		const result = await fetch('/impulse_rev.wav');
+		const arrayBuffer = await result.arrayBuffer();
+		console.log(result);
+		console.log(arrayBuffer);
+		this.reverbBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 	}
 
 	handleEvent(e: SoundEvent) {
@@ -92,8 +107,8 @@ export class SoundMachine {
 		if (event.soundId) {
 			try {
 				sound = this.getSound(event.soundId);
-				sound.osc.frequency.value = event.freq;
-				sound.gain.gain.value = event.gain;
+				sound.components[0].osc.frequency.value = event.freq;
+				sound.components[0].gain.gain.value = event.gain;
 			} catch (e) {
 				// Expected on first play event
 			}
@@ -115,7 +130,7 @@ export class SoundMachine {
 
 	private stopSound(soundId: string) {
 		const sound = this.getSound(soundId);
-		sound.osc.stop();
+		sound.components.map((c) => c.osc.stop());
 		this.activeSounds = this.activeSounds.filter((s) => s.id !== soundId);
 
 		this.playing = this.activeSounds.length !== 0;
@@ -124,21 +139,55 @@ export class SoundMachine {
 	}
 
 	private createSound(soundEvent: PlaySoundEvent) {
-		const osc = this.audioContext.createOscillator();
-		const gain = this.audioContext.createGain();
+		const { instrument, freq = 440, gain = 1.0 } = soundEvent;
 
-		// osc.type = soundEvent.oscillatorType || 'sine';
-		gain.gain.value = soundEvent.gain || 1.0;
-		osc.frequency.value = soundEvent.freq || 440.0;
+		let components: SoundComponent[];
 
-		osc.connect(gain);
-		gain.connect(this.audioContext.destination);
-		osc.start();
+		switch (instrument) {
+			case Instruments.Theremin:
+				components = [createSoundComponent(this.audioContext, freq, gain)];
+				break;
+			case Instruments.Synth:
+				let dest: AudioNode = this.audioContext.destination;
+				console.log('have buffer?', this.reverbBuffer);
+				if (this.reverbBuffer) {
+					const reverb = this.audioContext.createConvolver();
+					reverb.buffer = this.reverbBuffer;
+					reverb.connect(this.audioContext.destination);
+					dest = reverb;
+				}
+
+				components = [
+					createSoundComponent(this.audioContext, freq, gain / 2, dest),
+					createSoundComponent(this.audioContext, freq * 2, gain / 8, dest),
+					createSoundComponent(this.audioContext, freq * 3, gain / 8, dest),
+					createSoundComponent(this.audioContext, freq * 4, gain / 8, dest)
+				];
+				break;
+		}
+		components.map((c) => c.osc.start());
+
+		console.log(components, soundEvent);
 
 		return {
-			osc,
-			gain,
+			components,
 			id: soundEvent.soundId
 		};
 	}
+}
+
+function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest?: AudioNode) {
+	const osc = ac.createOscillator();
+	const gain = ac.createGain();
+
+	osc.frequency.value = freq;
+	gain.gain.value = amp;
+
+	osc.connect(gain);
+	gain.connect(dest || ac.destination);
+
+	return {
+		osc,
+		gain
+	};
 }
