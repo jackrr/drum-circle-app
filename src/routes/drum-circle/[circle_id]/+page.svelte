@@ -68,7 +68,6 @@
 	}
 </script>
 
-<!-- <Name {name} changeName={onChangeName} /> -->
 <div class="flex h-full w-full flex-col">
 	<div class="flex flex-row content-center justify-between">
 		<h1 class="px-4 text-lg">Circle ID {circleId}</h1>
