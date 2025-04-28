@@ -56,8 +56,6 @@ export class SoundMachine {
 	async init() {
 		const result = await fetch('/impulse_rev.wav');
 		const arrayBuffer = await result.arrayBuffer();
-		console.log(result);
-		console.log(arrayBuffer);
 		this.reverbBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 	}
 
@@ -149,7 +147,6 @@ export class SoundMachine {
 				break;
 			case Instruments.Synth:
 				let dest: AudioNode = this.audioContext.destination;
-				console.log('have buffer?', this.reverbBuffer);
 				if (this.reverbBuffer) {
 					const reverb = this.audioContext.createConvolver();
 					reverb.buffer = this.reverbBuffer;
@@ -166,8 +163,6 @@ export class SoundMachine {
 				break;
 		}
 		components.map((c) => c.osc.start());
-
-		console.log(components, soundEvent);
 
 		return {
 			components,

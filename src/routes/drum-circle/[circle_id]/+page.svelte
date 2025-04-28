@@ -68,10 +68,14 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-col">
+<div class="flex h-full w-full flex-col bg-gr-200 text-blue-800">
 	<div class="flex flex-row content-center justify-between">
-		<h1 class="px-4 text-lg">Circle ID {circleId}</h1>
-		<Peers peers={Object.values(peers)} />
+		<div class="grid place-content-center">
+			<h1 class="w-36 px-4 text-lg">Circle ID {circleId}</h1>
+		</div>
+		<div class="grid place-content-center">
+			<Peers peers={Object.values(peers)} />
+		</div>
 		<Settings />
 	</div>
 

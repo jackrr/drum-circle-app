@@ -28,7 +28,7 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-row flex-wrap content-center">
+<div class="flex h-full w-full flex-row flex-wrap content-center bg-gr-200 text-white">
 	<div class="grid place-content-center p-12">
 		<Logo size={120} />
 	</div>
@@ -37,14 +37,14 @@
 			class="h-12 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
 			onclick={createCircle}>Create new circle</button
 		>
-		<p class="p-4 text-center">-- OR --</p>
+		<p class="p-4 text-center font-bold">-- OR --</p>
 		<input
 			class="mb-4 h-12 rounded border px-3 py-1"
 			bind:value={pendingCircleId}
 			placeholder="Circle ID"
 		/>
 		<a
-			class="h-12 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+			class="text-center h-12 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
 			href={pendingCircleId.length > 0 ? `/drum-circle/${pendingCircleId}` : '#'}
 			>Join circle {pendingCircleId}</a
 		>

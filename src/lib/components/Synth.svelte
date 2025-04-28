@@ -45,10 +45,10 @@
 	);
 </script>
 
-<div class="flex h-full flex-row px-2">
+<div class="h-full px-4 grid auto-cols-fr grid-flow-col">
 	{#each notes as note}
 		<div
-			class="grid grow place-content-center border-r border-l"
+			class="grid place-content-center border-l last:border-r"
 			onpointerenter={(e) => {
 				// Release pointer capture allows drag across keys
 				e.target?.releasePointerCapture(e.pointerId);

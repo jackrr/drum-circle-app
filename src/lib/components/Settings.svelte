@@ -15,7 +15,7 @@
 </script>
 
 <button
-	class="grid place-content-center p-2"
+	class="grid place-content-center p-4 w-36"
 	onclick={() => (showModal = true)}
 	aria-label="Settings"
 >
@@ -27,7 +27,7 @@
 {/snippet}
 
 <dialog
-	class="open:bg m-8 p-2 backdrop:bg-slate-400 open:flex open:flex-col open:justify-between open:transition-opacity open:backdrop:transition-opacity"
+	class="text-white open:bg-gr-300 m-8 p-2 backdrop:bg-gr-100 open:flex open:flex-col open:justify-between open:transition-opacity open:backdrop:transition-opacity"
 	bind:this={dialog}
 	onclose={() => (showModal = false)}
 	onclick={(e) => {
@@ -35,10 +35,6 @@
 	}}
 >
 	<div class="flex grow flex-col">
-		<div class="flex h-12 flex-row content-center">
-			{@render label('Username:')}
-			<Username bind:value={userSettings.username} />
-		</div>
 		<div class="flex h-12 flex-row content-center">
 			{@render label('Instrument:')}
 			<Choice bind:choice={userSettings.instrument} choices={Object.values(Instruments)} />
@@ -79,7 +75,7 @@
 				/>
 			</div>
 			<div class="flex h-12 flex-row content-center">
-				{@render label(`Min Freq: ${thereminSettings.maxFreq}`)}
+				{@render label(`Max Freq: ${thereminSettings.maxFreq}`)}
 				<FrequencyPicker
 					bind:freq={thereminSettings.maxFreq}
 					min={thereminSettings.minFreq + 2}
@@ -87,6 +83,10 @@
 				/>
 			</div>
 		{/if}
+		<div class="flex h-12 flex-row content-center">
+			{@render label('Username:')}
+			<Username bind:value={userSettings.username} />
+		</div>
 	</div>
 	<button class="text-left" onclick={() => (showModal = false)}>Done</button>
 </dialog>
