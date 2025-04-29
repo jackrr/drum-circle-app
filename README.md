@@ -1,27 +1,30 @@
 # Drum Circle (Client App)
 
-## Todo
+Svelte(kit) app for playing music in a group.
 
-### V0
+## Dev setup
 
-- Playback and delivery of sound
-- Display of peers w/ name
+1. Clone this repo.
 
-### Bugs
+1. Clone and follow dev setup steps for the [backend server](https://github.com/jackrr/drum-circle-serverhttps://github.com/jackrr/drum-circle-server).
 
-- Username doesn't send initially
+1. Install dependencies
+```bash
+npm i
+```
+
+1. Start server
+```bash
+npm run dev
+```
 
 
-## Features
+## Contributing
 
-- V0 - Create a "drum circle"
-- V2 - Browse available drum circles
-- V0 - Join a drum circle
-- V1 - Select an instrument
-- V0 - Send a sound
-- V0 - Recieve sounds
-- V0 - Playback of sounds (local and sent)
-- V1 - Send sounds for instrument set
+See the [Issues](https://github.com/jackrr/drum-circle-app/issues) tab
+to find proposed features and known issues. You are welcome to suggest
+a solution on one of those, put up a PR, or open a new issue to
+suggest additional changes!
 
 ## WebRTC APIs
 
@@ -34,6 +37,7 @@
 1. ... wait for other members ... (see join)
 1. Backend forwards SDP offer from joiner
 1. Client creates new RTC conn with remote description to SDP
+1. ... Both clients start exchanging ICE candidates through backend ...
 1. Client creates RTC conn answer
 1. Client sends to RTC answer to backend
 1. Backend sends RTC answer to _the specific joiner_
@@ -50,4 +54,4 @@
 
 ### Playing music
 
-1. Client sends agreed contract on data channel
+1. Client sends sound events on RTC data channel
