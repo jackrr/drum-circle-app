@@ -18,4 +18,6 @@
 	--color-blue-600: oklch(0.65 0.0904 227.65);
 	--color-blue-700: oklch(0.7 0.0904 227.65);
 	--color-blue-800: oklch(0.76 0.0904 227.65);
+
+	--color-pink-700: oklch(0.87 0.0982 316.88);
 }
