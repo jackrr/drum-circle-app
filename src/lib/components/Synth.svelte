@@ -53,7 +53,7 @@
 	{#each notes as note}
 		<div
 			class="grid place-content-center border-l last:border-r {pressedKeys.has(note.label())
-				? 'bg-pink-700'
+				? 'bg-pink-700 text-gr-200'
 				: ''}"
 			onpointerenter={(e) => {
 				// Release pointer capture allows drag across keys
