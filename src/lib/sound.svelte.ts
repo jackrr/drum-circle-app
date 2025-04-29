@@ -38,6 +38,7 @@ const DEFAULT_TIMEOUT = 10 * 1000; // Kill sound after 10s without update
 
 export class SoundMachine {
 	audioContext: AudioContext;
+	sink: AudioNode;
 	activeSounds: Sound[];
 	// remote is true if representing sounds from a device across a
 	// network partition
@@ -45,12 +46,18 @@ export class SoundMachine {
 	reverbBuffer?: AudioBuffer;
 	playing = $state(false);
 
-	constructor(ac: AudioContext, remote: boolean = false) {
+	constructor(ac: AudioContext, remote: boolean = false, sink?: AudioNode) {
 		this.audioContext = ac;
 		this.activeSounds = [];
 		this.remote = remote;
-
+		this.sink = sink || this.createDynamicsCompressor();
 		this.init();
+	}
+
+	createDynamicsCompressor() {
+		const compressor = this.audioContext.createDynamicsCompressor();
+		compressor.connect(this.audioContext.destination);
+		return compressor;
 	}
 
 	async init() {
@@ -143,14 +150,14 @@ export class SoundMachine {
 
 		switch (instrument) {
 			case Instruments.Theremin:
-				components = [createSoundComponent(this.audioContext, freq, gain)];
+				components = [createSoundComponent(this.audioContext, freq, gain, this.sink)];
 				break;
 			case Instruments.Synth:
-				let dest: AudioNode = this.audioContext.destination;
+				let dest = this.sink;
 				if (this.reverbBuffer) {
 					const reverb = this.audioContext.createConvolver();
 					reverb.buffer = this.reverbBuffer;
-					reverb.connect(this.audioContext.destination);
+					reverb.connect(this.sink);
 					dest = reverb;
 				}
 
@@ -171,7 +178,7 @@ export class SoundMachine {
 	}
 }
 
-function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest?: AudioNode) {
+function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest: AudioNode) {
 	const osc = ac.createOscillator();
 	const gain = ac.createGain();
 
@@ -179,7 +186,7 @@ function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest?
 	gain.gain.value = amp;
 
 	osc.connect(gain);
-	gain.connect(dest || ac.destination);
+	gain.connect(dest);
 
 	return {
 		osc,

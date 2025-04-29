@@ -27,7 +27,7 @@
 			let peer = peers[peerId];
 
 			if (!peer) {
-				peer = new Peer(peerId, new SoundMachine(audioContext, true));
+				peer = new Peer(peerId, new SoundMachine(audioContext, true, soundMachine.sharedSink));
 			}
 
 			peers = { ...peers, [peerId]: peer };
@@ -42,6 +42,7 @@
 					break;
 
 				case P2PMessageName.DISCONNECT:
+					peer.sound.teardown();
 					delete peers[peerId];
 					break;
 
@@ -68,7 +69,7 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-col bg-gr-200 text-blue-800">
+<div class="bg-gr-200 flex h-full w-full flex-col text-blue-800">
 	<div class="flex flex-row content-center justify-between">
 		<div class="grid place-content-center">
 			<h1 class="w-36 px-4 text-lg">Circle ID {circleId}</h1>
