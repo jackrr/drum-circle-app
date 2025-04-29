@@ -6,6 +6,12 @@ Svelte(kit) app for playing music in a group.
 
 1. Clone this repo.
 
+1. Create a file `.env` in the root of the project with the following:
+
+```bash
+PUBLIC_WS_SERVER_HOST=ws://localhost:8080
+```
+
 1. Clone and follow dev setup steps for the [backend server](https://github.com/jackrr/drum-circle-serverhttps://github.com/jackrr/drum-circle-server).
 
 1. Install dependencies
