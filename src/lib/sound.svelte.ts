@@ -162,10 +162,10 @@ export class SoundMachine {
 				}
 
 				components = [
-					createSoundComponent(this.audioContext, freq, gain / 2, dest),
-					createSoundComponent(this.audioContext, freq * 2, gain / 8, dest),
-					createSoundComponent(this.audioContext, freq * 3, gain / 8, dest),
-					createSoundComponent(this.audioContext, freq * 4, gain / 8, dest)
+					createSoundComponent(this.audioContext, freq, (gain * 2) / 3, dest),
+					createSoundComponent(this.audioContext, freq * 2, gain / 10, dest),
+					createSoundComponent(this.audioContext, freq * 3, gain / 12, dest),
+					createSoundComponent(this.audioContext, freq * 4, gain / 14, dest)
 				];
 				break;
 		}
