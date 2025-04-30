@@ -27,7 +27,7 @@
 			let peer = peers[peerId];
 
 			if (!peer) {
-				peer = new Peer(peerId, new SoundMachine(audioContext, true, soundMachine.sharedSink));
+				peer = new Peer(peerId, new SoundMachine(audioContext, true, soundMachine!.sink));
 			}
 
 			peers = { ...peers, [peerId]: peer };
