@@ -66,6 +66,10 @@ export class SoundMachine {
 		this.reverbBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 	}
 
+	teardown() {
+		this.activeSounds.map((s) => this.stopSound(s.id));
+	}
+
 	handleEvent(e: SoundEvent) {
 		switch (e.type) {
 			case EventType.Play:
@@ -135,7 +139,10 @@ export class SoundMachine {
 
 	private stopSound(soundId: string) {
 		const sound = this.getSound(soundId);
-		sound.components.map((c) => c.osc.stop());
+		sound.components.map((c) => {
+			c.osc.stop();
+			c.gain.disconnect();
+		});
 		this.activeSounds = this.activeSounds.filter((s) => s.id !== soundId);
 
 		this.playing = this.activeSounds.length !== 0;
@@ -163,8 +170,8 @@ export class SoundMachine {
 
 				components = [
 					createSoundComponent(this.audioContext, freq, (gain * 2) / 3, dest),
-					createSoundComponent(this.audioContext, freq * 2, gain / 10, dest),
-					createSoundComponent(this.audioContext, freq * 3, gain / 12, dest),
+					createSoundComponent(this.audioContext, freq * 2, gain / 5, dest),
+					createSoundComponent(this.audioContext, freq * 3, gain / 7, dest),
 					createSoundComponent(this.audioContext, freq * 4, gain / 14, dest)
 				];
 				break;
