@@ -96,6 +96,11 @@ class PeerConnection {
 		this.channel.onmessage = (e) => this.incomingP2PMessages.next(JSON.parse(e.data));
 	}
 
+	close() {
+		this.channel?.close();
+		this.rtc.close();
+	}
+
 	async initiate() {
 		this.registerChannel(this.rtc.createDataChannel('peer_data_stream'));
 
@@ -137,6 +142,10 @@ class ServerConnection {
 	constructor(url: string) {
 		this.inbound = makeSubject<ServerPayload>();
 		this.socket = new WebSocket(url);
+	}
+
+	close() {
+		this.socket.close();
 	}
 
 	async init() {
@@ -201,6 +210,11 @@ export class DrumCircle {
 
 	async connect() {
 		await this.serverConnection.init();
+	}
+
+	close() {
+		this.serverConnection.close();
+		Object.values(this.peers).forEach((p) => p.close());
 	}
 
 	private createPeerConnection(peerId: string) {

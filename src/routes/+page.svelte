@@ -18,6 +18,10 @@
 		drumCircle = dc;
 	});
 
+	onDestroy(() => {
+		drumCircle?.close();
+	});
+
 	async function createCircle() {
 		if (drumCircle) {
 			const circleId = await drumCircle.create();
@@ -28,7 +32,7 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-row flex-wrap content-center bg-gr-200 text-white">
+<div class="bg-gr-200 flex h-full w-full flex-row flex-wrap content-center text-white">
 	<div class="grid place-content-center p-12">
 		<Logo size={120} />
 	</div>
@@ -44,7 +48,7 @@
 			placeholder="Circle ID"
 		/>
 		<a
-			class="text-center h-12 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+			class="h-12 rounded bg-blue-500 px-4 py-2 text-center font-bold text-white hover:bg-blue-700"
 			href={pendingCircleId.length > 0 ? `/drum-circle/${pendingCircleId}` : '#'}
 			>Join circle {pendingCircleId}</a
 		>

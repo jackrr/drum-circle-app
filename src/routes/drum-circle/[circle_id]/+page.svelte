@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { SoundEvent } from '$lib/sound.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { userSettings } from '$lib/settings.svelte';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
@@ -57,6 +57,10 @@
 
 		await drumCircle.connect();
 		drumCircle.join(circleId);
+	});
+
+	onDestroy(() => {
+		drumCircle?.close();
 	});
 
 	$effect(() => {
