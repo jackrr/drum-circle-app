@@ -38,6 +38,7 @@ const DEFAULT_TIMEOUT = 10 * 1000; // Kill sound after 10s without update
 
 export class SoundMachine {
 	audioContext: AudioContext;
+	sink: AudioNode;
 	activeSounds: Sound[];
 	// remote is true if representing sounds from a device across a
 	// network partition
@@ -45,18 +46,28 @@ export class SoundMachine {
 	reverbBuffer?: AudioBuffer;
 	playing = $state(false);
 
-	constructor(ac: AudioContext, remote: boolean = false) {
+	constructor(ac: AudioContext, remote: boolean = false, sink?: AudioNode) {
 		this.audioContext = ac;
 		this.activeSounds = [];
 		this.remote = remote;
-
+		this.sink = sink || this.createDynamicsCompressor();
 		this.init();
+	}
+
+	createDynamicsCompressor() {
+		const compressor = this.audioContext.createDynamicsCompressor();
+		compressor.connect(this.audioContext.destination);
+		return compressor;
 	}
 
 	async init() {
 		const result = await fetch('/impulse_rev.wav');
 		const arrayBuffer = await result.arrayBuffer();
 		this.reverbBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+	}
+
+	teardown() {
+		this.activeSounds.map((s) => this.stopSound(s.id));
 	}
 
 	handleEvent(e: SoundEvent) {
@@ -128,7 +139,10 @@ export class SoundMachine {
 
 	private stopSound(soundId: string) {
 		const sound = this.getSound(soundId);
-		sound.components.map((c) => c.osc.stop());
+		sound.components.map((c) => {
+			c.osc.stop();
+			c.gain.disconnect();
+		});
 		this.activeSounds = this.activeSounds.filter((s) => s.id !== soundId);
 
 		this.playing = this.activeSounds.length !== 0;
@@ -143,22 +157,22 @@ export class SoundMachine {
 
 		switch (instrument) {
 			case Instruments.Theremin:
-				components = [createSoundComponent(this.audioContext, freq, gain)];
+				components = [createSoundComponent(this.audioContext, freq, gain, this.sink)];
 				break;
 			case Instruments.Synth:
-				let dest: AudioNode = this.audioContext.destination;
+				let dest = this.sink;
 				if (this.reverbBuffer) {
 					const reverb = this.audioContext.createConvolver();
 					reverb.buffer = this.reverbBuffer;
-					reverb.connect(this.audioContext.destination);
+					reverb.connect(this.sink);
 					dest = reverb;
 				}
 
 				components = [
-					createSoundComponent(this.audioContext, freq, gain / 2, dest),
-					createSoundComponent(this.audioContext, freq * 2, gain / 8, dest),
-					createSoundComponent(this.audioContext, freq * 3, gain / 8, dest),
-					createSoundComponent(this.audioContext, freq * 4, gain / 8, dest)
+					createSoundComponent(this.audioContext, freq, (gain * 2) / 3, dest),
+					createSoundComponent(this.audioContext, freq * 2, gain / 5, dest),
+					createSoundComponent(this.audioContext, freq * 3, gain / 7, dest),
+					createSoundComponent(this.audioContext, freq * 4, gain / 14, dest)
 				];
 				break;
 		}
@@ -171,7 +185,7 @@ export class SoundMachine {
 	}
 }
 
-function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest?: AudioNode) {
+function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest: AudioNode) {
 	const osc = ac.createOscillator();
 	const gain = ac.createGain();
 
@@ -179,7 +193,7 @@ function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest?
 	gain.gain.value = amp;
 
 	osc.connect(gain);
-	gain.connect(dest || ac.destination);
+	gain.connect(dest);
 
 	return {
 		osc,
