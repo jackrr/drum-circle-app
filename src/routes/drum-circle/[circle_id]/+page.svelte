@@ -5,6 +5,7 @@
 	import { userSettings } from '$lib/settings.svelte';
 	import { P2PMessageName, DrumCircle } from '$lib/peerpool';
 	import { SoundMachine, Instruments } from '$lib/sound.svelte';
+	import Drums from '$lib/components/Drums.svelte';
 	import Theremin from '$lib/components/Theremin.svelte';
 	import Synth from '$lib/components/Synth.svelte';
 	import Peers, { Peer } from '$lib/components/Peers.svelte';
@@ -90,6 +91,9 @@
 		{/if}
 		{#if userSettings.instrument === Instruments.Synth}
 			<Synth {onSoundEvent} />
+		{/if}
+		{#if userSettings.instrument === Instruments.Drums}
+			<Drums {onSoundEvent} />
 		{/if}
 	</div>
 </div>

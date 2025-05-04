@@ -1,16 +1,36 @@
 export enum Instruments {
-	Theremin = 'Theremin',
-	Synth = 'Synth'
+	Synth = 'Synth',
+	Drums = 'Drums',
+	Theremin = 'Theremin'
+}
+
+export enum Sample {
+	Bass = 'Bass',
+	Snare = 'Snare',
+	Clap = 'Clap',
+	// TomLo = 'Mid Tom',
+	TomHi = 'Hi Tom',
+	Ride = 'Ride',
+	HatClosed = 'Closed',
+	HatOpen = 'Open',
+	CrashCym = 'Crash'
 }
 
 export enum EventType {
 	Play = 'Play',
-	End = 'End'
+	End = 'End',
+	Sample = 'Sample'
 }
+
+export type PlaySampleEvent = {
+	type: EventType.Sample;
+	instrument: Instruments.Drums;
+	sample: Sample;
+};
 
 export type PlaySoundEvent = {
 	type: EventType.Play;
-	instrument: Instruments;
+	instrument: Instruments.Synth | Instruments.Theremin;
 	soundId: string; // For updates
 	freq: number;
 	gain: number;
@@ -21,7 +41,7 @@ export type EndSoundEvent = {
 	soundId: string;
 };
 
-export type SoundEvent = PlaySoundEvent | EndSoundEvent;
+export type SoundEvent = PlaySoundEvent | EndSoundEvent | PlaySampleEvent;
 
 type SoundComponent = {
 	osc: OscillatorNode;
@@ -45,12 +65,14 @@ export class SoundMachine {
 	remote: boolean;
 	reverbBuffer?: AudioBuffer;
 	playing = $state(false);
+	sampleBuffers: Partial<Record<Sample, AudioBuffer>>;
 
 	constructor(ac: AudioContext, remote: boolean = false, sink?: AudioNode) {
 		this.audioContext = ac;
 		this.activeSounds = [];
 		this.remote = remote;
 		this.sink = sink || this.createDynamicsCompressor();
+		this.sampleBuffers = {};
 		this.init();
 	}
 
@@ -61,6 +83,19 @@ export class SoundMachine {
 	}
 
 	async init() {
+		return Promise.all([
+			this.setupReverb,
+			...Object.values(Sample).map((s) => this.preloadSample(s))
+		]);
+	}
+
+	async preloadSample(s: Sample) {
+		const data = await fetch(`/${s}.wav`);
+		const buffer = await data.arrayBuffer();
+		this.sampleBuffers[s] = await this.audioContext.decodeAudioData(buffer);
+	}
+
+	async setupReverb() {
 		const result = await fetch('/impulse_rev.wav');
 		const arrayBuffer = await result.arrayBuffer();
 		this.reverbBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
@@ -77,6 +112,9 @@ export class SoundMachine {
 				break;
 			case EventType.End:
 				this.stopSound(e.soundId);
+				break;
+			case EventType.Sample:
+				this.playSample(e);
 				break;
 			default:
 				console.error('Unhandled sound event', e);
@@ -112,6 +150,7 @@ export class SoundMachine {
 
 	private playSound(event: PlaySoundEvent) {
 		this.playing = true;
+
 		let sound;
 		if (event.soundId) {
 			try {
@@ -135,6 +174,21 @@ export class SoundMachine {
 		if (this.remote) {
 			this.debounceCancellation(sound.id);
 		}
+	}
+
+	private playSample(event: PlaySampleEvent) {
+		const { sample } = event;
+		const source = this.audioContext.createBufferSource();
+		const buffer = this.sampleBuffers[sample];
+		if (!buffer) {
+			console.warn('No audio buffer for sample', sample);
+			return;
+		}
+
+		source.buffer = buffer;
+		source.connect(this.sink);
+
+		source.start();
 	}
 
 	private stopSound(soundId: string) {
@@ -175,7 +229,10 @@ export class SoundMachine {
 					createSoundComponent(this.audioContext, freq * 4, gain / 14, dest)
 				];
 				break;
+			case Instruments.Drums:
+				throw new Error('Must use `playSampledEvent` for drum playback');
 		}
+
 		components.map((c) => c.osc.start());
 
 		return {
