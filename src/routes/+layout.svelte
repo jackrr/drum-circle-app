@@ -5,11 +5,10 @@
 
 	let { children } = $props();
 
-	function preventPinchZoom(e: TouchEvent) {
-		// TODO: This doesn't work on iOS
-		if (e.scale !== 1) {
-			e.preventDefault();
-		}
+	function preventPinchZoom(e: GestureEvent) {
+		e.preventDefault();
+		// special hack to prevent zoom-to-tabs gesture in safari
+		document.body.style.zoom = 0.99;
 	}
 
 	let lastTouchEnd = $state(new Date().getTime());
@@ -23,14 +22,18 @@
 	}
 
 	onMount(() => {
-		document.addEventListener('touchmove', preventPinchZoom, { passive: false });
+		document.addEventListener('gesturestart', preventPinchZoom, { passive: false });
+		document.addEventListener('gesturechange', preventPinchZoom, { passive: false });
+		document.addEventListener('gestureend', preventPinchZoom, { passive: false });
 		document.addEventListener('touchend', preventDblTapZoom, { passive: false });
 	});
 
 	onDestroy(() => {
 		if (!browser) return;
 
-		document.removeEventListener('touchmove', preventPinchZoom);
+		document.removeEventListener('gesturestart', preventPinchZoom);
+		document.removeEventListener('gesturechange', preventPinchZoom);
+		document.removeEventListener('gestureend', preventPinchZoom);
 		document.removeEventListener('touchend', preventDblTapZoom);
 	});
 </script>
