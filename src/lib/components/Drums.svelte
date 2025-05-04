@@ -37,7 +37,7 @@
 		}))
 	);
 
-	let debouncedPlayUIStops: { [sample in Sample]: ReturnType<typeof makeDebounce> } = Object.values(
+	let debouncedPlayUIStops: Record<Sample, ReturnType<typeof makeDebounce>> = Object.values(
 		Sample
 	).reduce((acc, sample) => {
 		acc[sample] = makeDebounce(() => {
@@ -46,9 +46,6 @@
 		});
 		return acc;
 	}, {});
-
-	// TODO: press + hold makes sound start every X ms while held
-	// TODO: rapid fire tap support on iOS
 </script>
 
 <div class="grid h-full grid-cols-4 gap-4 p-4">
@@ -57,7 +54,7 @@
 			class="grid max-h-24 place-content-center border {button.playing
 				? 'text-gr-200 bg-pink-700'
 				: ''}"
-			onclick={(_) => playSample(button.sample)}
+			onpointerenter={(_) => playSample(button.sample)}
 		>
 			{button.label}
 		</button>
