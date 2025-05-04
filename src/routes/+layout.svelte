@@ -35,7 +35,7 @@
 	});
 </script>
 
-<div class="flex h-screen w-screen flex-col bg-gr-200 p-safe">
+<div class="bg-gr-200 p-safe flex h-full w-full flex-col">
 	<div class="flex-grow">
 		{@render children()}
 	</div>
