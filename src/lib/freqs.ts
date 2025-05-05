@@ -94,6 +94,10 @@ export class Note {
 		return new Note(noteNames[noteIdx], octave as Octave);
 	}
 
+	static fromFrequency(freq: number) {
+		return this.fromAbsolute(absFreqs.indexOf(freq));
+	}
+
 	static fromInterval(note: Note, interval: number) {
 		return Note.fromAbsolute(note.toAbsolute() + interval);
 	}
@@ -101,10 +105,18 @@ export class Note {
 	label() {
 		return `${this.name}${this.octave}`;
 	}
+
+	semitoneDistance(other: Note) {
+		return this.toAbsolute() - other.toAbsolute();
+	}
+}
+
+export function semitoneDistance(f1: number, f2: number) {
+	return Math.log(f1 / f2) / Math.log(1.05946);
 }
 
 // C0 -> B8
-const absFreqs = [
+export const absFreqs = [
 	16.35, 17.32, 18.35, 19.45, 20.6, 21.83, 23.12, 24.5, 25.96, 27.5, 29.14, 30.87, 32.7, 34.65,
 	36.71, 38.89, 41.2, 43.65, 46.25, 49, 51.91, 55, 58.27, 61.74, 65.41, 69.3, 73.42, 77.78, 82.41,
 	87.31, 92.5, 98, 103.83, 110, 116.54, 123.47, 130.81, 138.59, 146.83, 155.56, 164.81, 174.61, 185,

@@ -1,19 +1,10 @@
+import { semitoneDistance } from '$lib/freqs';
+
 export enum Instruments {
 	Synth = 'Synth',
 	Drums = 'Drums',
-	Theremin = 'Theremin'
-}
-
-export enum Sample {
-	Bass = 'Bass',
-	Snare = 'Snare',
-	Clap = 'Clap',
-	// TomLo = 'Mid Tom',
-	TomHi = 'Hi Tom',
-	Ride = 'Ride',
-	HatClosed = 'Closed',
-	HatOpen = 'Open',
-	CrashCym = 'Crash'
+	Theremin = 'Theremin',
+	Sampler = 'Sampler'
 }
 
 export enum EventType {
@@ -24,8 +15,9 @@ export enum EventType {
 
 export type PlaySampleEvent = {
 	type: EventType.Sample;
-	instrument: Instruments.Drums;
+	instrument: Instruments.Drums | Instruments.Sampler;
 	sample: Sample;
+	freq?: number;
 };
 
 export type PlaySoundEvent = {
@@ -90,7 +82,7 @@ export class SoundMachine {
 	}
 
 	async preloadSample(s: Sample) {
-		const data = await fetch(`/${s}.wav`);
+		const data = await fetch(`/${sampleToFile(s)}`);
 		const buffer = await data.arrayBuffer();
 		this.sampleBuffers[s] = await this.audioContext.decodeAudioData(buffer);
 	}
@@ -177,12 +169,17 @@ export class SoundMachine {
 	}
 
 	private playSample(event: PlaySampleEvent) {
-		const { sample } = event;
+		const { sample, freq } = event;
 		const source = this.audioContext.createBufferSource();
 		const buffer = this.sampleBuffers[sample];
 		if (!buffer) {
 			console.warn('No audio buffer for sample', sample);
 			return;
+		}
+
+		if (freq) {
+			const semitones = semitoneDistance(freq, 440);
+			source.playbackRate.value = 2 ** (semitones / 12);
 		}
 
 		source.buffer = buffer;
@@ -229,8 +226,6 @@ export class SoundMachine {
 					createSoundComponent(this.audioContext, freq * 4, gain / 14, dest)
 				];
 				break;
-			case Instruments.Drums:
-				throw new Error('Must use `playSampledEvent` for drum playback');
 		}
 
 		components.map((c) => c.osc.start());
@@ -256,4 +251,37 @@ function createSoundComponent(ac: AudioContext, freq: number, amp: number, dest:
 		osc,
 		gain
 	};
+}
+
+export enum Sample {
+	Bass = 'Bass',
+	Snare = 'Snare',
+	Clap = 'Clap',
+	// TomLo = 'Mid Tom',
+	TomHi = 'Tom',
+	Ride = 'Ride',
+	HatClosed = 'Hat Cl',
+	HatOpen = 'Hat Op',
+	CrashCym = 'Crash',
+	BassPluck = 'B Guit',
+	// PenSound = 'pen-sounds',
+	// PenGrowl = 'pen-growl'
+	PenBark = 'Bark'
+}
+
+function sampleToFile(s: Sample) {
+	switch (s) {
+		case Sample.HatClosed:
+			return 'Closed.wav';
+		case Sample.HatOpen:
+			return 'Open.wav';
+		case Sample.TomHi:
+			return 'Hi Tom.wav';
+		case Sample.BassPluck:
+			return 'bass-guitar-pluck.wav';
+		case Sample.PenBark:
+			return 'pen-bark.wav';
+		default:
+			return `${s}.wav`;
+	}
 }

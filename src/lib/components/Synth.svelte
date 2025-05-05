@@ -3,41 +3,53 @@
 	import type { Octave } from '$lib/freqs';
 	import { Note, NoteName, Scale, generateScale } from '$lib/freqs';
 	import { EventType, Instruments } from '$lib/sound.svelte';
-	import { synthSettings } from '$lib/settings.svelte';
-	const { onSoundEvent } = $props();
+	import { synthSettings, samplerSettings } from '$lib/settings.svelte';
+	const { onSoundEvent, variant } = $props();
 
 	type Sound = {
 		soundId: string;
 		note: Note;
 	};
 
-	function soundIdFromPointerId(pointerId: number) {
-		return `synth-${pointerId}`;
+	function getSoundId(note: Note) {
+		return `synth-${note.label()}`;
 	}
 
-	let sounds = $state<{ [pointerId: string]: Sound }>({});
+	let sounds = $state<{ [soundId: string]: Sound }>({});
 	let pressedKeys = new SvelteSet();
 
-	function playNote(pointerId: number, note: Note) {
+	function playNote(note: Note) {
 		pressedKeys.add(note.label());
-		const soundId = soundIdFromPointerId(pointerId);
-		onSoundEvent({
-			soundId,
-			freq: note.freq,
-			type: EventType.Play,
-			instrument: Instruments.Synth
-		});
-		sounds[soundId] = {
-			soundId,
-			note
-		};
+		const soundId = getSoundId(note);
+		if (variant === Instruments.Sampler) {
+			onSoundEvent({
+				soundId,
+				freq: note.freq,
+				type: EventType.Sample,
+				sample: samplerSettings.sample,
+				instrument: Instruments.Sampler
+			});
+		} else if (variant === Instruments.Synth) {
+			onSoundEvent({
+				soundId,
+				freq: note.freq,
+				type: EventType.Play,
+				instrument: Instruments.Synth
+			});
+			sounds[soundId] = {
+				soundId,
+				note
+			};
+		}
 	}
 
-	function stopNote(pointerId: number, note: Note) {
+	function stopNote(note: Note) {
 		pressedKeys.delete(note.label());
-		const soundId = soundIdFromPointerId(pointerId);
-		onSoundEvent({ soundId, type: EventType.End });
-		delete sounds[soundId];
+		if (variant === Instruments.Synth) {
+			const soundId = getSoundId(note);
+			onSoundEvent({ soundId, type: EventType.End });
+			delete sounds[soundId];
+		}
 	}
 
 	let notes: Note[] = $derived(
@@ -55,12 +67,12 @@
 			class="grid place-content-center border-l last:border-r {pressedKeys.has(note.label())
 				? 'text-gr-200 bg-pink-700'
 				: ''}"
-			onpointerenter={(e) => {
-				// Release pointer capture allows drag across keys
+			onpointerover={(e) => {
+				e.currentTarget.releasePointerCapture(e.pointerId);
 				e.target?.releasePointerCapture(e.pointerId);
-				playNote(e.pointerId, note);
+				playNote(note);
 			}}
-			onpointerleave={(e) => stopNote(e.pointerId, note)}
+			onpointerleave={(_) => stopNote(note)}
 		>
 			{note.label()}
 		</div>

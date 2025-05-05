@@ -2,19 +2,16 @@
 	import { EventType, Instruments, Sample } from '$lib/sound.svelte';
 	import { makeDebounce } from '$lib/utils';
 	const { onSoundEvent } = $props();
-
-	function sampleToLabel(s: Sample) {
-		switch (s) {
-			case Sample.HatClosed:
-				return 'Hat Cl';
-			case Sample.HatOpen:
-				return 'Hat Op';
-			case Sample.TomHi:
-				return 'Tom';
-			default:
-				return s.toString();
-		}
-	}
+	const samples = [
+		Sample.Bass,
+		Sample.Snare,
+		Sample.Clap,
+		Sample.TomHi,
+		Sample.Ride,
+		Sample.HatClosed,
+		Sample.HatOpen,
+		Sample.CrashCym
+	];
 
 	function playSample(sample: Sample) {
 		onSoundEvent({
@@ -30,22 +27,22 @@
 	}
 
 	let buttons = $state(
-		Object.values(Sample).map((sample) => ({
+		samples.map((sample) => ({
 			sample,
-			playing: false,
-			label: sampleToLabel(sample)
+			playing: false
 		}))
 	);
 
-	let debouncedPlayUIStops: Record<Sample, ReturnType<typeof makeDebounce>> = Object.values(
-		Sample
-	).reduce((acc, sample) => {
-		acc[sample] = makeDebounce(() => {
-			const button = buttons.find((b) => b.sample === sample);
-			button && (button.playing = false);
-		});
-		return acc;
-	}, {});
+	let debouncedPlayUIStops: Record<Sample, ReturnType<typeof makeDebounce>> = samples.reduce(
+		(acc, sample) => {
+			acc[sample] = makeDebounce(() => {
+				const button = buttons.find((b) => b.sample === sample);
+				button && (button.playing = false);
+			});
+			return acc;
+		},
+		{}
+	);
 </script>
 
 <div class="grid h-full grid-cols-4 gap-4 p-4">
@@ -56,7 +53,7 @@
 				: ''}"
 			onpointerenter={(_) => playSample(button.sample)}
 		>
-			{button.label}
+			{button.sample.toString()}
 		</button>
 	{/each}
 </div>

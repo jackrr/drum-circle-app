@@ -90,7 +90,10 @@
 			<Theremin {onSoundEvent} />
 		{/if}
 		{#if userSettings.instrument === Instruments.Synth}
-			<Synth {onSoundEvent} />
+			<Synth {onSoundEvent} variant={Instruments.Synth} />
+		{/if}
+		{#if userSettings.instrument === Instruments.Sampler}
+			<Synth {onSoundEvent} variant={Instruments.Sampler} />
 		{/if}
 		{#if userSettings.instrument === Instruments.Drums}
 			<Drums {onSoundEvent} />

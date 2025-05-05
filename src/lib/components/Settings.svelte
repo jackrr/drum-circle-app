@@ -3,8 +3,13 @@
 	import FrequencyPicker from '$lib/components/FrequencyPicker.svelte';
 	import Choice from '$lib/components/Choice.svelte';
 	import { noteNames, scaleNames } from '$lib/freqs';
-	import { Instruments } from '$lib/sound.svelte';
-	import { userSettings, thereminSettings, synthSettings } from '$lib/settings.svelte';
+	import { Instruments, Sample } from '$lib/sound.svelte';
+	import {
+		userSettings,
+		thereminSettings,
+		synthSettings,
+		samplerSettings
+	} from '$lib/settings.svelte';
 
 	let dialog = $state<HTMLDialogElement>();
 	let showModal = $state(false);
@@ -62,6 +67,14 @@
 			<div class="flex h-12 flex-row content-center">
 				{@render label(`Keys: ${synthSettings.numKeys}`)}
 				<input type="range" bind:value={synthSettings.numKeys} step={1} min={3} max={20} />
+			</div>
+		{/if}
+		{#if userSettings.instrument === Instruments.Sampler}
+			<div class="flex flex-row content-center">
+				{@render label('Sample:')}
+				<div class="grid grid-cols-4">
+					<Choice bind:choice={samplerSettings.sample} choices={Object.values(Sample)} />
+				</div>
 			</div>
 		{/if}
 

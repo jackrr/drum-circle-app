@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { Note, NoteName, Scale } from '$lib/freqs';
-import { Instruments } from '$lib/sound.svelte';
+import { Instruments, Sample } from '$lib/sound.svelte';
 
 enum UserSettingsKeys {
 	username = 'username',
@@ -17,6 +17,10 @@ enum SynthSettingsKeys {
 	rootOctave = 'rootOctave',
 	scale = 'scale',
 	numKeys = 'numKeys'
+}
+
+enum SamplerSettingsKeys {
+	sample = 'sample'
 }
 
 function getSetting(key: string) {
@@ -49,6 +53,11 @@ export const synthSettings = $state({
 	[SynthSettingsKeys.numKeys]: parseInt(getSetting('synth_' + SynthSettingsKeys.numKeys) || '10')
 });
 
+export const samplerSettings = $state({
+	[SamplerSettingsKeys.sample]:
+		getSetting('sampler_' + SamplerSettingsKeys.sample) || Sample.PenBark
+});
+
 const destroy = $effect.root(() => {
 	$effect(() => {
 		for (const key in UserSettingsKeys) {
@@ -73,6 +82,15 @@ const destroy = $effect.root(() => {
 			const lsKey = 'theremin_' + key;
 			if (thereminSettings[key].toString !== localStorage.getItem(lsKey)) {
 				localStorage.setItem(lsKey, thereminSettings[key]);
+			}
+		}
+	});
+
+	$effect(() => {
+		for (const key in SamplerSettingsKeys) {
+			const lsKey = 'sampler_' + key;
+			if (samplerSettings[key].toString !== localStorage.getItem(lsKey)) {
+				localStorage.setItem(lsKey, samplerSettings[key]);
 			}
 		}
 	});
